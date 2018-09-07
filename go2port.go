@@ -66,16 +66,17 @@ func generate(c *cli.Context) error {
 		pkgstr := c.Args().Get(i)
 		version := c.Args().Get(i + 1)
 		if debug {
-			log.Printf("Generating portfile for %q (%q)", pkgstr, version)
+			log.Printf("Generating portfile for %s (%s)", pkgstr, version)
 		}
 		pkg, err := splitPackage(pkgstr)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		err = generateOne(pkg, version)
+		portfile, err := generateOne(pkg, version)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		fmt.Print(string(portfile))
 	}
 	return nil
 }
@@ -102,10 +103,10 @@ type GlideLock struct {
 	Imports []Dependency
 }
 
-func generateOne(pkg Package, version string) error {
+func generateOne(pkg Package, version string) ([]byte, error) {
 	deps, err := dependencies(pkg, version)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var buf bytes.Buffer
@@ -113,11 +114,11 @@ func generateOne(pkg Package, version string) error {
 
 	csums, err := checksums(pkg, version)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	depcsums, err := depChecksums(deps)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	tvars := map[string]string{
 		"Author":       pkg.Author,
@@ -132,10 +133,9 @@ func generateOne(pkg Package, version string) error {
 
 	err = tplt.Execute(&buf, tvars)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	fmt.Print(buf.String())
-	return nil
+	return buf.Bytes(), nil
 }
 
 var verReg = regexp.MustCompile("\\..*$")
