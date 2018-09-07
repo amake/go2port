@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"github.com/urfave/cli"
+	"golang.org/x/crypto/ripemd160"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
@@ -217,7 +219,17 @@ func checksums(pkg Package, version string) (Checksums, error) {
 	if err != nil {
 		return ret, err
 	}
+
 	ret.Size = fmt.Sprintf("%d", len(tarball))
+
+	sha := sha256.New()
+	sha.Write(tarball)
+	ret.Sha256 = fmt.Sprintf("%x", sha.Sum(nil))
+
+	rmd := ripemd160.New()
+	rmd.Write(tarball)
+	ret.Rmd160 = fmt.Sprintf("%x", rmd.Sum(nil))
+
 	return ret, nil
 }
 
