@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/urfave/cli"
 	"gopkg.in/yaml.v2"
@@ -60,12 +61,19 @@ func generate(c *cli.Context) error {
 		return cli.NewExitError("Please specify a package and version (tag or SHA1)", 1)
 	}
 	for i := 0; i < c.NArg(); i = i + 2 {
-		pkg := c.Args().Get(i)
+		pkgstr := c.Args().Get(i)
 		version := c.Args().Get(i + 1)
 		if debug {
-			log.Printf("Generating portfile for %q (%q)", pkg, version)
+			log.Printf("Generating portfile for %q (%q)", pkgstr, version)
 		}
-		generateOne(splitPackage(pkg), version)
+		pkg, err := splitPackage(pkgstr)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		err = generateOne(pkg, version)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 	return nil
 }
@@ -89,12 +97,16 @@ type GlideLock struct {
 func generateOne(pkg Package, version string) error {
 	deps, err := dependencies(pkg, version)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(portfile))
 
+	csums, err := checksums(deps)
+	if err != nil {
+		return err
+	}
 	tvars := map[string]string{
 		"Author":    pkg.Author,
 		"Project":   pkg.Project,
@@ -103,12 +115,12 @@ func generateOne(pkg Package, version string) error {
 		"Sha256":    "0",
 		"Size":      "0",
 		"GoVendors": goVendors(deps),
-		"Checksums": checksums(deps),
+		"Checksums": csums,
 	}
 
 	err = tplt.Execute(&buf, tvars)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	fmt.Print(buf.String())
 	return nil
@@ -116,7 +128,7 @@ func generateOne(pkg Package, version string) error {
 
 var verReg = regexp.MustCompile("\\..*$")
 
-func splitPackage(pkg string) Package {
+func splitPackage(pkg string) (Package, error) {
 	parts := strings.Split(pkg, "/")
 	ret := Package{
 		Host: parts[0],
@@ -135,8 +147,10 @@ func splitPackage(pkg string) Package {
 			ret.Project = verReg.ReplaceAllString(parts[1], "")
 			ret.Author = "go-" + ret.Project
 		}
+	default:
+		return ret, errors.New("Unknown domain: " + parts[0])
 	}
-	return ret
+	return ret, nil
 }
 
 func dependencies(pkg Package, version string) ([]Dependency, error) {
@@ -173,13 +187,16 @@ func goVendors(deps []Dependency) string {
 	return ret
 }
 
-func checksums(deps []Dependency) string {
+func checksums(deps []Dependency) (string, error) {
 	if len(deps) == 0 {
-		return ""
+		return "", nil
 	}
 	ret := "checksums-append    "
 	for i, dep := range deps {
-		pkg := splitPackage(dep.Name)
+		pkg, err := splitPackage(dep.Name)
+		if err != nil {
+			return "", err
+		}
 		chk := fmt.Sprintf("%[1]s-%[2]s-${%[2]s.version}.tar.gz \\\n", pkg.Author, pkg.Project)
 		chk = chk + strings.Repeat(" ", 24) + "rmd160 0 \\\n"
 		chk = chk + strings.Repeat(" ", 24) + "sha256 0 \\\n"
@@ -189,5 +206,5 @@ func checksums(deps []Dependency) string {
 		}
 		ret = ret + chk
 	}
-	return ret
+	return ret, nil
 }
