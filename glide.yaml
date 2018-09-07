@@ -2,3 +2,6 @@ package: github.com/amake/go2port
 import:
 - package: github.com/urfave/cli
   version: ^1.20.0
+- package: golang.org/x/crypto
+- package: gopkg.in/yaml.v2
+  version: ^2.2.1
