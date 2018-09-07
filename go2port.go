@@ -192,7 +192,7 @@ func splitPackage(pkg string) (Package, error) {
 		ret.Project = parts[2]
 	case "golang.org":
 		ret.Author = "golang"
-		ret.Project = parts[1]
+		ret.Project = parts[2]
 	case "gopkg.in":
 		switch len(parts) {
 		case 2:
