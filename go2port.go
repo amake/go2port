@@ -53,7 +53,7 @@ checksums           {{.Project}}-${github.version}.tar.gz \
 
 {{.GoVendors}}
 
-{{.Checksums}}
+{{.DepChecksums}}
 `
 
 func generate(c *cli.Context) error {
@@ -85,6 +85,12 @@ type Package struct {
 	Id      string
 }
 
+type Checksums struct {
+	Rmd160 string
+	Sha256 string
+	Size   string
+}
+
 type Dependency struct {
 	Name    string
 	Version string
@@ -103,19 +109,23 @@ func generateOne(pkg Package, version string) error {
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(portfile))
 
-	csums, err := checksums(deps)
+	csums, err := checksums(pkg, version)
+	if err != nil {
+		return err
+	}
+	depcsums, err := depChecksums(deps)
 	if err != nil {
 		return err
 	}
 	tvars := map[string]string{
-		"Author":    pkg.Author,
-		"Project":   pkg.Project,
-		"Version":   version,
-		"Rmd160":    "0",
-		"Sha256":    "0",
-		"Size":      "0",
-		"GoVendors": goVendors(deps),
-		"Checksums": csums,
+		"Author":       pkg.Author,
+		"Project":      pkg.Project,
+		"Version":      version,
+		"Rmd160":       csums.Rmd160,
+		"Sha256":       csums.Sha256,
+		"Size":         csums.Size,
+		"GoVendors":    goVendors(deps),
+		"DepChecksums": depcsums,
 	}
 
 	err = tplt.Execute(&buf, tvars)
@@ -146,6 +156,9 @@ func splitPackage(pkg string) (Package, error) {
 		case 2:
 			ret.Project = verReg.ReplaceAllString(parts[1], "")
 			ret.Author = "go-" + ret.Project
+		case 3:
+			ret.Project = verReg.ReplaceAllString(parts[2], "")
+			ret.Author = parts[1]
 		}
 	default:
 		return ret, errors.New("Unknown domain: " + parts[0])
@@ -187,7 +200,28 @@ func goVendors(deps []Dependency) string {
 	return ret
 }
 
-func checksums(deps []Dependency) (string, error) {
+func checksums(pkg Package, version string) (Checksums, error) {
+	ret := Checksums{
+		Rmd160: "0",
+		Sha256: "0",
+		Size:   "0",
+	}
+	tarUrl := fmt.Sprintf("https://github.com/%s/%s/tarball/%s",
+		pkg.Author, pkg.Project, version)
+	res, err := http.Get(tarUrl)
+	if err != nil {
+		return ret, err
+	}
+	tarball, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return ret, err
+	}
+	ret.Size = fmt.Sprintf("%d", len(tarball))
+	return ret, nil
+}
+
+func depChecksums(deps []Dependency) (string, error) {
 	if len(deps) == 0 {
 		return "", nil
 	}
