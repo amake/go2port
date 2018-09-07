@@ -50,7 +50,6 @@ PortGroup           github 1.0
 PortGroup           golang 1.0
 
 github.setup        {{.Author}} {{.Project}} {{.Version}}
-name                {{.Project}}
 categories
 platforms           darwin
 maintainers
