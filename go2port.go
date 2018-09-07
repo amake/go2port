@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"text/template"
@@ -21,7 +22,18 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "go2port"
 	app.Usage = "Generate a MacPorts portfile from a Go project"
-	app.Action = generate
+	app.Commands = []cli.Command{
+		{
+			Name:   "get",
+			Usage:  "Generate a MacPorts portfile and output it to stdout",
+			Action: generate,
+		},
+		{
+			Name:   "update",
+			Usage:  "Overwrite an existing MacPorts portfile",
+			Action: update,
+		},
+	}
 
 	err := app.Run(os.Args)
 	if err != nil {
@@ -77,6 +89,35 @@ func generate(c *cli.Context) error {
 			return cli.NewExitError(err, 1)
 		}
 		fmt.Print(string(portfile))
+	}
+	return nil
+}
+
+func update(c *cli.Context) error {
+	if c.NArg() != 2 {
+		return cli.NewExitError("Please specify a package and version (tag or SHA1)", 1)
+	}
+	for i := 0; i < c.NArg(); i = i + 2 {
+		pkgstr := c.Args().Get(i)
+		version := c.Args().Get(i + 1)
+		pkg, err := splitPackage(pkgstr)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		out, err := exec.Command("port", "file", pkg.Project).Output()
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		outfile := strings.TrimSpace(string(out))
+		log.Printf("Updating existing portfile: %s", outfile)
+		portfile, err := generateOne(pkg, version)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		err = ioutil.WriteFile(outfile, portfile, 0755)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 	return nil
 }
