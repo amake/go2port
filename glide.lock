@@ -1,10 +1,12 @@
 hash: dc7b3d61ccb71fef7b6a15cedd705816eba48671cb334edd982d3fbae1cacb24
-updated: 2018-09-07T10:45:56.079408+09:00
+updated: 2018-09-08T16:31:37.314383+09:00
 imports:
 - name: github.com/urfave/cli
   version: cfb38830724cc34fedffe9a2a29fb54fa9169cd1
 - name: golang.org/x/crypto
   version: 0709b304e793a5edb4a2c0145f281ecdc20838a4
+  subpackages:
+  - ripemd160
 - name: gopkg.in/yaml.v2
   version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
 testImports: []
