@@ -46,12 +46,10 @@ var debug = false
 var portfile = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
 
 PortSystem          1.0
-PortGroup           github 1.0
 PortGroup           golang 1.0
 
-github.setup        {{.Author}} {{.Project}} {{.Version}}
+go.setup            {{.Author}} {{.Project}} {{.Version}}
 categories
-platforms           darwin
 maintainers
 license
 
@@ -232,7 +230,7 @@ func goVendors(deps []Dependency) string {
 	if len(deps) == 0 {
 		return ""
 	}
-	ret := "go.vendors-append   "
+	ret := "go.vendors          "
 	for i, dep := range deps {
 		ret = ret + dep.Name + " " + dep.Version
 		if i < len(deps)-1 {
