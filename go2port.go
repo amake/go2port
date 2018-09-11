@@ -49,7 +49,7 @@ var portfile = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: 
 PortSystem          1.0
 PortGroup           golang 1.0
 
-go.setup            {{.Author}} {{.Project}} {{.Version}}
+github.setup        {{.Author}} {{.Project}} {{.Version}}
 categories
 maintainers
 license
