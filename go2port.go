@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ripemd160"
 	"gopkg.in/yaml.v2"
@@ -132,13 +133,22 @@ type Checksums struct {
 	Size   string
 }
 
+// This struct represents the main information we need about a dependency
+// package. It is based on the glide.lock YAML definition, but with cajoling
+// (tags) is able to work with the Gopkg.lock TOML definition as
+// well. Supporting additional formats may require refactoring to funnel various
+// format-specific structures into a single generic one.
 type Dependency struct {
 	Name    string
-	Version string
+	Version string `toml:"revision"`
 }
 
 type GlideLock struct {
 	Imports []Dependency
+}
+
+type GopkgLock struct {
+	Projects []Dependency
 }
 
 func generateOne(pkg Package, version string) ([]byte, error) {
@@ -207,11 +217,27 @@ func splitPackage(pkg string) (Package, error) {
 }
 
 func dependencies(pkg Package, version string) ([]Dependency, error) {
+	deps, err := glideDependencies(pkg, version)
+	if err == nil {
+		return deps, nil
+	}
+	deps, err = gopkgDependencies(pkg, version)
+	if err == nil {
+		return deps, nil
+	}
+	return nil, err
+}
+
+func glideDependencies(pkg Package, version string) ([]Dependency, error) {
 	lockUrl := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/glide.lock",
 		pkg.Author, pkg.Project, version)
 	res, err := http.Get(lockUrl)
 	if err != nil {
 		return nil, err
+	}
+	if res.StatusCode != 200 {
+		msg := fmt.Sprintf("glide.lock not available; HTTP status=%d", res.StatusCode)
+		return nil, errors.New(msg)
 	}
 	lockBytes, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
@@ -224,6 +250,30 @@ func dependencies(pkg Package, version string) ([]Dependency, error) {
 		return nil, err
 	}
 	return lock.Imports, nil
+}
+
+func gopkgDependencies(pkg Package, version string) ([]Dependency, error) {
+	lockUrl := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/Gopkg.lock",
+		pkg.Author, pkg.Project, version)
+	res, err := http.Get(lockUrl)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		msg := fmt.Sprintf("Gopkg.lock not available; HTTP status=%d", res.StatusCode)
+		return nil, errors.New(msg)
+	}
+	lockBytes, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	lock := GopkgLock{}
+	err = toml.Unmarshal(lockBytes, &lock)
+	if err != nil {
+		return nil, err
+	}
+	return lock.Projects, nil
 }
 
 func goVendors(deps []Dependency) string {
