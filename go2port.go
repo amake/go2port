@@ -49,7 +49,7 @@ var portfile = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: 
 PortSystem          1.0
 PortGroup           golang 1.0
 
-github.setup        {{.Author}} {{.Project}} {{.Version}}
+go.setup            {{.PackageId}} {{.Version}}
 categories
 maintainers
 license
@@ -58,7 +58,7 @@ description
 
 long_description
 
-checksums           {{.Project}}-${github.version}.tar.gz \
+checksums           ${distname}${extract.suffix} \
                         rmd160  {{.Rmd160}} \
                         sha256  {{.Sha256}} \
                         size    {{.Size}}
@@ -169,8 +169,7 @@ func generateOne(pkg Package, version string) ([]byte, error) {
 		return nil, err
 	}
 	tvars := map[string]string{
-		"Author":       pkg.Author,
-		"Project":      pkg.Project,
+		"PackageId":    pkg.Id,
 		"Version":      version,
 		"Rmd160":       csums.Rmd160,
 		"Sha256":       csums.Sha256,
