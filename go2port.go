@@ -334,7 +334,7 @@ func depChecksums(deps []Dependency) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		chk := fmt.Sprintf("%[1]s-%[2]s-${%[2]s.version}.tar.gz \\\n", pkg.Author, pkg.Project)
+		chk := fmt.Sprintf("${%s.distfile} \\\n", pkg.Project)
 		chk = chk + fmt.Sprintf("%srmd160 %s \\\n", strings.Repeat(" ", 24), csums.Rmd160)
 		chk = chk + fmt.Sprintf("%ssha256 %s \\\n", strings.Repeat(" ", 24), csums.Sha256)
 		chk = chk + fmt.Sprintf("%ssize %s", strings.Repeat(" ", 24), csums.Size)
