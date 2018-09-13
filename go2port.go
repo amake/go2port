@@ -78,11 +78,11 @@ func generate(c *cli.Context) error {
 		if debug {
 			log.Printf("Generating portfile for %s (%s)", pkgstr, version)
 		}
-		pkg, err := splitPackage(pkgstr)
+		pkg, err := newPackage(pkgstr, version)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		portfile, err := generateOne(pkg, version)
+		portfile, err := generateOne(pkg)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -98,7 +98,7 @@ func update(c *cli.Context) error {
 	for i := 0; i < c.NArg(); i = i + 2 {
 		pkgstr := c.Args().Get(i)
 		version := c.Args().Get(i + 1)
-		pkg, err := splitPackage(pkgstr)
+		pkg, err := newPackage(pkgstr, version)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -108,7 +108,7 @@ func update(c *cli.Context) error {
 		}
 		outfile := strings.TrimSpace(string(out))
 		log.Printf("Updating existing portfile: %s", outfile)
-		portfile, err := generateOne(pkg, version)
+		portfile, err := generateOne(pkg)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -125,6 +125,7 @@ type Package struct {
 	Author  string
 	Project string
 	Id      string
+	Version string
 }
 
 type Checksums struct {
@@ -151,8 +152,8 @@ type GopkgLock struct {
 	Projects []Dependency
 }
 
-func generateOne(pkg Package, version string) ([]byte, error) {
-	deps, err := dependencies(pkg, version)
+func generateOne(pkg Package) ([]byte, error) {
+	deps, err := dependencies(pkg)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +161,7 @@ func generateOne(pkg Package, version string) ([]byte, error) {
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(portfile))
 
-	csums, err := checksums(pkg, version)
+	csums, err := checksums(pkg)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +171,7 @@ func generateOne(pkg Package, version string) ([]byte, error) {
 	}
 	tvars := map[string]string{
 		"PackageId":    pkg.Id,
-		"Version":      version,
+		"Version":      pkg.Version,
 		"Rmd160":       csums.Rmd160,
 		"Sha256":       csums.Sha256,
 		"Size":         csums.Size,
@@ -187,11 +188,12 @@ func generateOne(pkg Package, version string) ([]byte, error) {
 
 var verReg = regexp.MustCompile("\\..*$")
 
-func splitPackage(pkg string) (Package, error) {
+func newPackage(pkg string, version string) (Package, error) {
 	parts := strings.Split(pkg, "/")
 	ret := Package{
-		Host: parts[0],
-		Id:   pkg,
+		Host:    parts[0],
+		Id:      pkg,
+		Version: version,
 	}
 	switch parts[0] {
 	case "github.com":
@@ -215,21 +217,21 @@ func splitPackage(pkg string) (Package, error) {
 	return ret, nil
 }
 
-func dependencies(pkg Package, version string) ([]Dependency, error) {
-	deps, err := glideDependencies(pkg, version)
+func dependencies(pkg Package) ([]Dependency, error) {
+	deps, err := glideDependencies(pkg)
 	if err == nil {
 		return deps, nil
 	}
-	deps, err = gopkgDependencies(pkg, version)
+	deps, err = gopkgDependencies(pkg)
 	if err == nil {
 		return deps, nil
 	}
 	return nil, err
 }
 
-func glideDependencies(pkg Package, version string) ([]Dependency, error) {
+func glideDependencies(pkg Package) ([]Dependency, error) {
 	lockUrl := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/glide.lock",
-		pkg.Author, pkg.Project, version)
+		pkg.Author, pkg.Project, pkg.Version)
 	res, err := http.Get(lockUrl)
 	if err != nil {
 		return nil, err
@@ -251,9 +253,9 @@ func glideDependencies(pkg Package, version string) ([]Dependency, error) {
 	return lock.Imports, nil
 }
 
-func gopkgDependencies(pkg Package, version string) ([]Dependency, error) {
+func gopkgDependencies(pkg Package) ([]Dependency, error) {
 	lockUrl := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/Gopkg.lock",
-		pkg.Author, pkg.Project, version)
+		pkg.Author, pkg.Project, pkg.Version)
 	res, err := http.Get(lockUrl)
 	if err != nil {
 		return nil, err
@@ -289,14 +291,14 @@ func goVendors(deps []Dependency) string {
 	return ret
 }
 
-func checksums(pkg Package, version string) (Checksums, error) {
+func checksums(pkg Package) (Checksums, error) {
 	ret := Checksums{
 		Rmd160: "0",
 		Sha256: "0",
 		Size:   "0",
 	}
 	tarUrl := fmt.Sprintf("https://github.com/%s/%s/tarball/%s",
-		pkg.Author, pkg.Project, version)
+		pkg.Author, pkg.Project, pkg.Version)
 	res, err := http.Get(tarUrl)
 	if err != nil {
 		return ret, err
@@ -326,11 +328,11 @@ func depChecksums(deps []Dependency) (string, error) {
 	}
 	ret := "checksums-append    "
 	for i, dep := range deps {
-		pkg, err := splitPackage(dep.Name)
+		pkg, err := newPackage(dep.Name, dep.Version)
 		if err != nil {
 			return "", err
 		}
-		csums, err := checksums(pkg, dep.Version)
+		csums, err := checksums(pkg)
 		if err != nil {
 			return "", err
 		}
