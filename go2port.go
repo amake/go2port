@@ -161,16 +161,20 @@ type GopkgLock struct {
 
 func generateOne(pkg Package) ([]byte, error) {
 	deps, err := dependencies(pkg)
-	if err != nil {
-		return nil, err
+	if debugOn && err != nil {
+		msg := fmt.Sprintf("Could not retrieve dependencies for package: %s", pkg.Id)
+		log.Println(msg)
+		log.Println(err)
 	}
 
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(portfile))
 
 	csums, err := checksums(pkg)
-	if err != nil {
-		return nil, err
+	if debugOn && err != nil {
+		msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
+		log.Println(msg)
+		log.Println(err)
 	}
 	depcsums, err := depChecksums(deps)
 	if err != nil {
