@@ -196,23 +196,35 @@ func newPackage(pkg string, version string) (Package, error) {
 		Version: version,
 	}
 	switch parts[0] {
-	case "github.com":
-		ret.Author = parts[1]
-		ret.Project = parts[2]
 	case "golang.org":
+		if len(parts) < 3 {
+			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
+		}
+		// Use GitHub mirror
+		ret.Host = "github.com"
 		ret.Author = "golang"
 		ret.Project = parts[2]
 	case "gopkg.in":
+		// gopkg.in redirects to GitHub
+		ret.Host = "github.com"
 		switch len(parts) {
 		case 2:
+			// Short format: gopkg.in/foo.v1 -> github.com/go-foo/foo
 			ret.Project = verReg.ReplaceAllString(parts[1], "")
 			ret.Author = "go-" + ret.Project
 		case 3:
+			// Long format: gopkg.in/foo/bar.v1 -> github.com/foo/bar
 			ret.Project = verReg.ReplaceAllString(parts[2], "")
 			ret.Author = parts[1]
+		default:
+			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
 		}
 	default:
-		return ret, errors.New("Unknown domain: " + parts[0])
+		if len(parts) < 3 {
+			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
+		}
+		ret.Author = parts[1]
+		ret.Project = parts[2]
 	}
 	return ret, nil
 }
