@@ -23,6 +23,13 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "go2port"
 	app.Usage = "Generate a MacPorts portfile from a Go project"
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:        "debug, d",
+			Usage:       "print debug information",
+			Destination: &debugOn,
+		},
+	}
 	app.Commands = []cli.Command{
 		{
 			Name:   "get",
@@ -42,7 +49,7 @@ func main() {
 	}
 }
 
-var debug = false
+var debugOn = false
 
 var portfile = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
 
@@ -75,7 +82,7 @@ func generate(c *cli.Context) error {
 	for i := 0; i < c.NArg(); i = i + 2 {
 		pkgstr := c.Args().Get(i)
 		version := c.Args().Get(i + 1)
-		if debug {
+		if debugOn {
 			log.Printf("Generating portfile for %s (%s)", pkgstr, version)
 		}
 		pkg, err := newPackage(pkgstr, version)
