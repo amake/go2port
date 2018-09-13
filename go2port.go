@@ -229,9 +229,24 @@ func dependencies(pkg Package) ([]Dependency, error) {
 	return nil, err
 }
 
+func rawFileUrl(pkg Package, file string) (string, error) {
+	switch pkg.Host {
+	case "github.com":
+		return fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
+			pkg.Author, pkg.Project, pkg.Version, file), nil
+	case "bitbucket.org":
+		return fmt.Sprintf("https://bitbucket.org/%s/%s/raw/%s/%s",
+			pkg.Author, pkg.Project, pkg.Version, file), nil
+	default:
+		return "", errors.New(fmt.Sprintf("Unsupported domain: %s", pkg.Host))
+	}
+}
+
 func glideDependencies(pkg Package) ([]Dependency, error) {
-	lockUrl := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/glide.lock",
-		pkg.Author, pkg.Project, pkg.Version)
+	lockUrl, err := rawFileUrl(pkg, "glide.lock")
+	if err != nil {
+		return nil, err
+	}
 	res, err := http.Get(lockUrl)
 	if err != nil {
 		return nil, err
@@ -254,8 +269,10 @@ func glideDependencies(pkg Package) ([]Dependency, error) {
 }
 
 func gopkgDependencies(pkg Package) ([]Dependency, error) {
-	lockUrl := fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/Gopkg.lock",
-		pkg.Author, pkg.Project, pkg.Version)
+	lockUrl, err := rawFileUrl(pkg, "Gopkg.lock")
+	if err != nil {
+		return nil, err
+	}
 	res, err := http.Get(lockUrl)
 	if err != nil {
 		return nil, err
@@ -291,14 +308,29 @@ func goVendors(deps []Dependency) string {
 	return ret
 }
 
+func tarballUrl(pkg Package) (string, error) {
+	switch pkg.Host {
+	case "github.com":
+		return fmt.Sprintf("https://github.com/%s/%s/tarball/%s",
+			pkg.Author, pkg.Project, pkg.Version), nil
+	case "bitbucket.org":
+		return fmt.Sprintf("https://bitbucket.org/%s/%s/get/%s.tar.gz",
+			pkg.Author, pkg.Project, pkg.Version), nil
+	default:
+		return "", errors.New(fmt.Sprintf("Unsupported domain: %s", pkg.Host))
+	}
+}
+
 func checksums(pkg Package) (Checksums, error) {
 	ret := Checksums{
 		Rmd160: "0",
 		Sha256: "0",
 		Size:   "0",
 	}
-	tarUrl := fmt.Sprintf("https://github.com/%s/%s/tarball/%s",
-		pkg.Author, pkg.Project, pkg.Version)
+	tarUrl, err := tarballUrl(pkg)
+	if err != nil {
+		return ret, err
+	}
 	res, err := http.Get(tarUrl)
 	if err != nil {
 		return ret, err
