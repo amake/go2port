@@ -32,14 +32,16 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		{
-			Name:   "get",
-			Usage:  "Generate a MacPorts portfile and output it to stdout",
-			Action: generate,
+			Name:      "get",
+			Usage:     "Generate a MacPorts portfile and output it to stdout",
+			ArgsUsage: "<package> <version>",
+			Action:    generate,
 		},
 		{
-			Name:   "update",
-			Usage:  "Overwrite an existing MacPorts portfile",
-			Action: update,
+			Name:      "update",
+			Usage:     "Overwrite an existing MacPorts portfile",
+			ArgsUsage: "<package> <version>",
+			Action:    update,
 		},
 	}
 
