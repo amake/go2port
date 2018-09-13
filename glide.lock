@@ -1,6 +1,8 @@
-hash: 8a1d6bf3f6f24ac01ada83fa8b68151ec1c2934232ac3da6690ff8c9162fdfd2
-updated: 2018-09-11T09:50:15.192977+09:00
+hash: e13b98b38063a0e32d789623e30e7d188b9905859e7fd0ed548a145afa9eea11
+updated: 2018-09-13T22:30:59.52142+09:00
 imports:
+- name: bitbucket.org/atlassian/go-asap
+  version: e478a00d13fcc2df1ab76bf8f243a67257fabe54
 - name: github.com/BurntSushi/toml
   version: b26d9c308763d68093482582cea63d69be07a0f0
 - name: github.com/urfave/cli
