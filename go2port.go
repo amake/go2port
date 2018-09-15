@@ -67,10 +67,7 @@ description
 
 long_description
 
-checksums           ${distname}${extract.suffix} \
-                        rmd160  {{.Rmd160}} \
-                        sha256  {{.Sha256}} \
-                        size    {{.Size}}
+{{.Checksums}}
 
 {{.GoVendors}}
 
@@ -172,12 +169,9 @@ func generateOne(pkg Package) ([]byte, error) {
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(portfile))
 
-	csums, err := checksums(pkg)
-	if debugOn && err != nil {
-		msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
-		log.Println(msg)
-		log.Println(err)
-	}
+	// Main checksums will never return an error; they will be zeros if the
+	// checksums could not be calculated for some reason.
+	csums := mainChecksumsStr(pkg)
 	depcsums, err := depChecksums(deps)
 	if err != nil {
 		return nil, err
@@ -185,9 +179,7 @@ func generateOne(pkg Package) ([]byte, error) {
 	tvars := map[string]string{
 		"PackageId":    pkg.Id,
 		"Version":      pkg.Version,
-		"Rmd160":       csums.Rmd160,
-		"Sha256":       csums.Sha256,
-		"Size":         csums.Size,
+		"Checksums":    csums,
 		"GoVendors":    goVendors(deps),
 		"DepChecksums": depcsums,
 	}
@@ -377,6 +369,20 @@ func checksums(pkg Package) (Checksums, error) {
 	ret.Rmd160 = fmt.Sprintf("%x", rmd.Sum(nil))
 
 	return ret, nil
+}
+
+func mainChecksumsStr(pkg Package) string {
+	ret := "checksums           ${distname}${extract.suffix} \\\n"
+	csums, err := checksums(pkg)
+	if debugOn && err != nil {
+		msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
+		log.Println(msg)
+		log.Println(err)
+	}
+	ret = ret + fmt.Sprintf("%srmd160 %s \\\n", strings.Repeat(" ", 24), csums.Rmd160)
+	ret = ret + fmt.Sprintf("%ssha256 %s \\\n", strings.Repeat(" ", 24), csums.Sha256)
+	ret = ret + fmt.Sprintf("%ssize %s", strings.Repeat(" ", 24), csums.Size)
+	return ret
 }
 
 func depChecksums(deps []Dependency) (string, error) {
