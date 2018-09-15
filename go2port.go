@@ -48,7 +48,7 @@ func main() {
 		{
 			Name:      "update",
 			Usage:     "Overwrite an existing MacPorts portfile",
-			ArgsUsage: "<package> <version>",
+			ArgsUsage: "<portname> <version>",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "output, o",
@@ -125,13 +125,9 @@ func update(c *cli.Context) error {
 		return cli.NewExitError("Please specify a package and version (tag or SHA1)", 1)
 	}
 	for i := 0; i < c.NArg(); i = i + 2 {
-		pkgstr := c.Args().Get(i)
+		portname := c.Args().Get(i)
 		version := c.Args().Get(i + 1)
-		pkg, err := newPackage(pkgstr, version)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		out, err := exec.Command("port", "file", pkg.Project).Output()
+		out, err := exec.Command("port", "file", portname).Output()
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -140,7 +136,17 @@ func update(c *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		tmplate, err := templateFromPortfile(pkg, string(portfileOld))
+		portfileOldStr := string(portfileOld)
+		pkgstr := packageFromPortfile(portfileOldStr)
+		if pkgstr == "" {
+			msg := fmt.Sprintf("Could not detect Go package from portfile %s", portfilePath)
+			return cli.NewExitError(msg, 1)
+		}
+		pkg, err := newPackage(pkgstr, version)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		tmplate, err := templateFromPortfile(pkg, portfileOldStr)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -169,6 +175,13 @@ func update(c *cli.Context) error {
 		}
 	}
 	return nil
+}
+
+var setupPkgRegexp = regexp.MustCompile("go.setup\\s+(\\S+)")
+
+func packageFromPortfile(portfile string) string {
+	match := setupPkgRegexp.FindStringSubmatch(portfile)
+	return match[1]
 }
 
 var checksumsPattern = regexp.MustCompile("checksums(?:.*\\\\\n)*.*")
