@@ -34,7 +34,7 @@ func main() {
 		{
 			Name:      "get",
 			Usage:     "Generate a MacPorts portfile and output it to stdout",
-			ArgsUsage: "<package> <version>",
+			ArgsUsage: "<package> <version> ...",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "output, o",
@@ -48,7 +48,7 @@ func main() {
 		{
 			Name:      "update",
 			Usage:     "Overwrite an existing MacPorts portfile",
-			ArgsUsage: "<portname> <version>",
+			ArgsUsage: "<portname> <version> ...",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "output, o",
@@ -89,8 +89,13 @@ long_description
 `
 
 func generate(c *cli.Context) error {
-	if c.NArg() != 2 {
+	if c.NArg()%2 != 0 {
 		return cli.NewExitError("Please specify a package and version (tag or SHA1)", 1)
+	}
+	outfile := c.String("output")
+	if c.NArg() > 2 && outfile != "-" && outfile != "" {
+		log.Println("WARNING: Output file ignored in batch mode")
+		outfile = ""
 	}
 	for i := 0; i < c.NArg(); i = i + 2 {
 		pkgstr := c.Args().Get(i)
@@ -106,9 +111,7 @@ func generate(c *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		outfile := c.String("output")
-		toStdOut := outfile == "-"
-		if toStdOut {
+		if outfile == "-" {
 			_, err = fmt.Print(string(portfile))
 		} else {
 			err = ioutil.WriteFile(outfile, portfile, 0755)
@@ -121,58 +124,70 @@ func generate(c *cli.Context) error {
 }
 
 func update(c *cli.Context) error {
-	if c.NArg() != 2 {
+	if c.NArg()%2 != 0 {
 		return cli.NewExitError("Please specify a package and version (tag or SHA1)", 1)
+	}
+	outfile := c.String("output")
+	if c.NArg() > 2 && outfile != "-" && outfile != "" {
+		log.Println("WARNING: Output file ignored in batch mode")
+		outfile = ""
 	}
 	for i := 0; i < c.NArg(); i = i + 2 {
 		portname := c.Args().Get(i)
 		version := c.Args().Get(i + 1)
-		out, err := exec.Command("port", "file", portname).Output()
+		err := updateOne(portname, version, outfile)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		portfilePath := strings.TrimSpace(string(out))
-		portfileOld, err := ioutil.ReadFile(portfilePath)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		portfileOldStr := string(portfileOld)
-		pkgstr := packageFromPortfile(portfileOldStr)
-		if pkgstr == "" {
-			msg := fmt.Sprintf("Could not detect Go package from portfile %s", portfilePath)
-			return cli.NewExitError(msg, 1)
-		}
-		pkg, err := newPackage(pkgstr, version)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		tmplate, err := templateFromPortfile(pkg, portfileOldStr)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		outfile := c.String("output")
-		if outfile == "" {
-			outfile = portfilePath
-		}
-		toStdOut := outfile == "-"
-		if debugOn {
-			log.Printf("Generated template from existing portfile:\n%s", tmplate)
-		}
-		if !toStdOut {
-			log.Printf("Updating existing portfile: %s", portfilePath)
-		}
-		portfileNew, err := generateOne(pkg, tmplate)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
-		if toStdOut {
-			_, err = fmt.Print(string(portfileNew))
-		} else {
-			err = ioutil.WriteFile(outfile, portfileNew, 0755)
-		}
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
+	}
+	return nil
+}
+
+func updateOne(portname string, version string, outfile string) error {
+	toStdOut := outfile == "-"
+	out, err := exec.Command("port", "file", portname).Output()
+	if err != nil {
+		return err
+	}
+	portfilePath := strings.TrimSpace(string(out))
+	portfileOld, err := ioutil.ReadFile(portfilePath)
+	if err != nil {
+		return err
+	}
+	portfileOldStr := string(portfileOld)
+	pkgstr := packageFromPortfile(portfileOldStr)
+	if pkgstr == "" {
+		msg := fmt.Sprintf("Could not detect Go package from portfile %s", portfilePath)
+		return errors.New(msg)
+	}
+	pkg, err := newPackage(pkgstr, version)
+	if err != nil {
+		return err
+	}
+	tmplate, err := templateFromPortfile(pkg, portfileOldStr)
+	if err != nil {
+		return err
+	}
+	if outfile == "" {
+		outfile = portfilePath
+	}
+	if debugOn {
+		log.Printf("Generated template from existing portfile:\n%s", tmplate)
+	}
+	if !toStdOut {
+		log.Printf("Updating existing portfile: %s", portfilePath)
+	}
+	portfileNew, err := generateOne(pkg, tmplate)
+	if err != nil {
+		return err
+	}
+	if toStdOut {
+		_, err = fmt.Print(string(portfileNew))
+	} else {
+		err = ioutil.WriteFile(outfile, portfileNew, 0755)
+	}
+	if err != nil {
+		return err
 	}
 	return nil
 }
