@@ -172,7 +172,7 @@ func generateOne(pkg Package) ([]byte, error) {
 	// Main checksums will never return an error; they will be zeros if the
 	// checksums could not be calculated for some reason.
 	csums := mainChecksumsStr(pkg)
-	depcsums, err := depChecksums(deps)
+	depcsums, err := depChecksumsStr(deps)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +385,7 @@ func mainChecksumsStr(pkg Package) string {
 	return ret
 }
 
-func depChecksums(deps []Dependency) (string, error) {
+func depChecksumsStr(deps []Dependency) (string, error) {
 	if len(deps) == 0 {
 		return "", nil
 	}
