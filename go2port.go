@@ -35,13 +35,27 @@ func main() {
 			Name:      "get",
 			Usage:     "Generate a MacPorts portfile and output it to stdout",
 			ArgsUsage: "<package> <version>",
-			Action:    generate,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "output, o",
+					Usage: "output `FILE` (\"-\" for stdout)",
+					Value: "-",
+				},
+			},
+
+			Action: generate,
 		},
 		{
 			Name:      "update",
 			Usage:     "Overwrite an existing MacPorts portfile",
 			ArgsUsage: "<package> <version>",
-			Action:    update,
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "output, o",
+					Usage: "output `FILE` (\"-\" for stdout)",
+				},
+			},
+			Action: update,
 		},
 	}
 
@@ -92,7 +106,16 @@ func generate(c *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		fmt.Print(string(portfile))
+		outfile := c.String("output")
+		toStdOut := outfile == "-"
+		if toStdOut {
+			_, err = fmt.Print(string(portfile))
+		} else {
+			err = ioutil.WriteFile(outfile, portfile, 0755)
+		}
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 	return nil
 }
@@ -112,24 +135,35 @@ func update(c *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		outfile := strings.TrimSpace(string(out))
-		currPortfile, err := ioutil.ReadFile(outfile)
+		portfilePath := strings.TrimSpace(string(out))
+		portfileOld, err := ioutil.ReadFile(portfilePath)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		tmplate, err := templateFromPortfile(pkg, string(currPortfile))
+		tmplate, err := templateFromPortfile(pkg, string(portfileOld))
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+		outfile := c.String("output")
+		if outfile == "" {
+			outfile = portfilePath
+		}
+		toStdOut := outfile == "-"
 		if debugOn {
 			log.Printf("Generated template from existing portfile:\n%s", tmplate)
 		}
-		log.Printf("Updating existing portfile: %s", outfile)
-		portfile, err := generateOne(pkg, tmplate)
+		if !toStdOut {
+			log.Printf("Updating existing portfile: %s", portfilePath)
+		}
+		portfileNew, err := generateOne(pkg, tmplate)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		err = ioutil.WriteFile(outfile, portfile, 0755)
+		if toStdOut {
+			_, err = fmt.Print(string(portfileNew))
+		} else {
+			err = ioutil.WriteFile(outfile, portfileNew, 0755)
+		}
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
