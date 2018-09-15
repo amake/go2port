@@ -402,6 +402,14 @@ func checksums(pkg Package) (Checksums, error) {
 	return ret, nil
 }
 
+func (csums *Checksums) valueString(indentSize int) string {
+	pad := strings.Repeat(" ", indentSize)
+	ret := fmt.Sprintf(`%[1]srmd160  %[2]s \
+%[1]ssha256  %[3]s \
+%[1]ssize    %[4]s`, pad, csums.Rmd160, csums.Sha256, csums.Size)
+	return ret
+}
+
 func mainChecksumsStr(pkg Package) string {
 	ret := "checksums           ${distname}${extract.suffix} \\\n"
 	csums, err := checksums(pkg)
@@ -410,10 +418,7 @@ func mainChecksumsStr(pkg Package) string {
 		log.Println(msg)
 		log.Println(err)
 	}
-	ret = ret + fmt.Sprintf("%srmd160  %s \\\n", strings.Repeat(" ", 24), csums.Rmd160)
-	ret = ret + fmt.Sprintf("%ssha256  %s \\\n", strings.Repeat(" ", 24), csums.Sha256)
-	ret = ret + fmt.Sprintf("%ssize    %s", strings.Repeat(" ", 24), csums.Size)
-	return ret
+	return ret + csums.valueString(24)
 }
 
 func depChecksumsStr(deps []Dependency) (string, error) {
@@ -432,10 +437,7 @@ func depChecksumsStr(deps []Dependency) (string, error) {
 			log.Println(msg)
 			log.Println(err)
 		}
-		chk := fmt.Sprintf("${%s.distfile} \\\n", pkg.Project)
-		chk = chk + fmt.Sprintf("%srmd160  %s \\\n", strings.Repeat(" ", 24), csums.Rmd160)
-		chk = chk + fmt.Sprintf("%ssha256  %s \\\n", strings.Repeat(" ", 24), csums.Sha256)
-		chk = chk + fmt.Sprintf("%ssize    %s", strings.Repeat(" ", 24), csums.Size)
+		chk := fmt.Sprintf("${%s.distfile} \\\n%s", pkg.Project, csums.valueString(24))
 		if i < len(deps)-1 {
 			chk = chk + " \\\n" + strings.Repeat(" ", 20)
 		}
