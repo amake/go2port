@@ -53,7 +53,7 @@ func main() {
 
 var debugOn = false
 
-var portfile = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
+var portfileTemplate = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
 
 PortSystem          1.0
 PortGroup           golang 1.0
@@ -88,7 +88,7 @@ func generate(c *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		portfile, err := generateOne(pkg)
+		portfile, err := generateOne(pkg, portfileTemplate)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -113,8 +113,19 @@ func update(c *cli.Context) error {
 			return cli.NewExitError(err, 1)
 		}
 		outfile := strings.TrimSpace(string(out))
+		currPortfile, err := ioutil.ReadFile(outfile)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		tmplate, err := templateFromPortfile(pkg, string(currPortfile))
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+		if debugOn {
+			log.Printf("Generated template from existing portfile:\n%s", tmplate)
+		}
 		log.Printf("Updating existing portfile: %s", outfile)
-		portfile, err := generateOne(pkg)
+		portfile, err := generateOne(pkg, tmplate)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -124,6 +135,24 @@ func update(c *cli.Context) error {
 		}
 	}
 	return nil
+}
+
+var checksumsPattern = regexp.MustCompile("checksums(?:.*\\\\\n)*.*")
+var goVendorsPattern = regexp.MustCompile("go\\.vendors(?:.*\\\\\n)*.*")
+var checksumsAppendPattern = regexp.MustCompile("checksums-append(?:.*\\\\\n)*.*")
+
+func templateFromPortfile(pkg Package, portfile string) (string, error) {
+	setupRegexp := fmt.Sprintf("(?P<before>go.setup\\s+%s\\s+)\\S+(?P<after>.*)", pkg.Id)
+	setupPattern, err := regexp.Compile(setupRegexp)
+	if err != nil {
+		return "", err
+	}
+	portfile = setupPattern.ReplaceAllString(portfile, "$before{{.Version}}$after")
+	// checksums-append must be replaced before checksums!
+	portfile = checksumsAppendPattern.ReplaceAllString(portfile, "{{.DepChecksums}}")
+	portfile = goVendorsPattern.ReplaceAllString(portfile, "{{.GoVendors}}")
+	portfile = checksumsPattern.ReplaceAllString(portfile, "{{.Checksums}}")
+	return portfile, nil
 }
 
 type Package struct {
@@ -158,7 +187,7 @@ type GopkgLock struct {
 	Projects []Dependency
 }
 
-func generateOne(pkg Package) ([]byte, error) {
+func generateOne(pkg Package, tmplate string) ([]byte, error) {
 	deps, err := dependencies(pkg)
 	if debugOn && err != nil {
 		msg := fmt.Sprintf("Could not retrieve dependencies for package: %s", pkg.Id)
@@ -167,7 +196,7 @@ func generateOne(pkg Package) ([]byte, error) {
 	}
 
 	var buf bytes.Buffer
-	tplt := template.Must(template.New("portfile").Parse(portfile))
+	tplt := template.Must(template.New("portfile").Parse(tmplate))
 
 	// Main checksums will never return an error; they will be zeros if the
 	// checksums could not be calculated for some reason.
