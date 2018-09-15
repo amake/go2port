@@ -172,6 +172,8 @@ func generateOne(pkg Package) ([]byte, error) {
 	// Main checksums will never return an error; they will be zeros if the
 	// checksums could not be calculated for some reason.
 	csums := mainChecksumsStr(pkg)
+	// Dependency checksums could be an error only if a package was
+	// malformed. Any other error will simply result in zeros.
 	depcsums, err := depChecksumsStr(deps)
 	if err != nil {
 		return nil, err
@@ -396,8 +398,10 @@ func depChecksumsStr(deps []Dependency) (string, error) {
 			return "", err
 		}
 		csums, err := checksums(pkg)
-		if err != nil {
-			return "", err
+		if debugOn && err != nil {
+			msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
+			log.Println(msg)
+			log.Println(err)
 		}
 		chk := fmt.Sprintf("${%s.distfile} \\\n", pkg.Project)
 		chk = chk + fmt.Sprintf("%srmd160 %s \\\n", strings.Repeat(" ", 24), csums.Rmd160)
