@@ -19,10 +19,14 @@ import (
 	"text/template"
 )
 
+// Build with -ldflags "-X main.version=$VERSION" to overwrite
+var version = "dev"
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "go2port"
 	app.Usage = "Generate a MacPorts portfile from a Go project"
+	app.Version = version
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:        "debug, d",
