@@ -78,6 +78,10 @@ See the [golang PortGroup
 documentation](https://guide.macports.org/#reference.portgroup.golang) for more
 information about specifying dependencies.
 
+**Note:** Many projects commit their dependency source e.g. in `vendor`. For
+such projects you should not specify `go.vendors` or the additional checksum
+entries.
+
 ### Updating existing ports
 
 go2port can also update existing portfiles:
