@@ -147,13 +147,26 @@ func update(c *cli.Context) error {
 	return nil
 }
 
+func getPortfilePath(portname string) (string, error) {
+	cmd := exec.Command("port", "file", portname)
+	var (
+		stdout, stderr bytes.Buffer
+	)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Print(stderr.String())
+		return "", err
+	}
+	return strings.TrimSpace(stdout.String()), nil
+}
+
 func updateOne(portname string, version string, outfile string) error {
 	toStdOut := outfile == "-"
-	out, err := exec.Command("port", "file", portname).Output()
+	portfilePath, err := getPortfilePath(portname)
 	if err != nil {
 		return err
 	}
-	portfilePath := strings.TrimSpace(string(out))
 	portfileOld, err := ioutil.ReadFile(portfilePath)
 	if err != nil {
 		return err
