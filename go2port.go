@@ -88,8 +88,6 @@ long_description
 {{.Checksums}}
 
 {{.GoVendors}}
-
-{{.DepChecksums}}
 `
 
 func generate(c *cli.Context) error {
@@ -218,7 +216,6 @@ func packageFromPortfile(portfile string) string {
 
 var checksumsPattern = regexp.MustCompile("checksums(?:.*\\\\\n)*.*")
 var goVendorsPattern = regexp.MustCompile("go\\.vendors(?:.*\\\\\n)*.*")
-var checksumsAppendPattern = regexp.MustCompile("checksums-append(?:.*\\\\\n)*.*")
 
 func templateFromPortfile(pkg Package, portfile string) (string, error) {
 	setupRegexp := fmt.Sprintf("(?P<before>go.setup\\s+%s\\s+)\\S+(?P<after>.*)", pkg.Id)
@@ -227,8 +224,6 @@ func templateFromPortfile(pkg Package, portfile string) (string, error) {
 		return "", err
 	}
 	portfile = setupPattern.ReplaceAllString(portfile, "$before{{.Version}}$after")
-	// checksums-append must be replaced before checksums!
-	portfile = checksumsAppendPattern.ReplaceAllString(portfile, "{{.DepChecksums}}")
 	portfile = goVendorsPattern.ReplaceAllString(portfile, "{{.GoVendors}}")
 	portfile = checksumsPattern.ReplaceAllString(portfile, "{{.Checksums}}")
 	return portfile, nil
@@ -277,21 +272,11 @@ func generateOne(pkg Package, tmplate string) ([]byte, error) {
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(tmplate))
 
-	// Main checksums will never return an error; they will be zeros if the
-	// checksums could not be calculated for some reason.
-	csums := mainChecksumsStr(pkg)
-	// Dependency checksums could be an error only if a package was
-	// malformed. Any other error will simply result in zeros.
-	depcsums, err := depChecksumsStr(deps)
-	if err != nil {
-		return nil, err
-	}
 	tvars := map[string]string{
-		"PackageId":    pkg.Id,
-		"Version":      pkg.Version,
-		"Checksums":    csums,
-		"GoVendors":    goVendors(deps),
-		"DepChecksums": depcsums,
+		"PackageId": pkg.Id,
+		"Version":   pkg.Version,
+		"Checksums": checksumsStr(pkg, len(deps)),
+		"GoVendors": goVendors(deps),
 	}
 
 	err = tplt.Execute(&buf, tvars)
@@ -427,7 +412,21 @@ func goVendors(deps []Dependency) string {
 	}
 	ret := "go.vendors          "
 	for i, dep := range deps {
-		ret = ret + dep.Name + " " + dep.Version
+		ret = ret + dep.Name + " \\\n"
+		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), dep.Version)
+		pkg, err := newPackage(dep.Name, dep.Version)
+		if debugOn && err != nil {
+			msg := fmt.Sprintf("Could not parse package ID: %s", dep.Name)
+			log.Println(msg)
+			log.Println(err)
+		}
+		csums, err := checksums(pkg)
+		if debugOn && err != nil {
+			msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
+			log.Println(msg)
+			log.Println(err)
+		}
+		ret = ret + csums.valueString(24)
 		if i < len(deps)-1 {
 			ret = ret + " \\\n" + strings.Repeat(" ", 20)
 		}
@@ -489,38 +488,18 @@ func (csums *Checksums) valueString(indentSize int) string {
 	return ret
 }
 
-func mainChecksumsStr(pkg Package) string {
-	ret := "checksums           ${distname}${extract.suffix} \\\n"
+func checksumsStr(pkg Package, depCount int) string {
+	ret := "checksums           "
+	indent := 20
+	if depCount > 0 {
+		ret = "checksums           ${distname}${extract.suffix} \\\n"
+		indent = 24
+	}
 	csums, err := checksums(pkg)
 	if debugOn && err != nil {
 		msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
 		log.Println(msg)
 		log.Println(err)
 	}
-	return ret + csums.valueString(24)
-}
-
-func depChecksumsStr(deps []Dependency) (string, error) {
-	if len(deps) == 0 {
-		return "", nil
-	}
-	ret := "checksums-append    "
-	for i, dep := range deps {
-		pkg, err := newPackage(dep.Name, dep.Version)
-		if err != nil {
-			return "", err
-		}
-		csums, err := checksums(pkg)
-		if debugOn && err != nil {
-			msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
-			log.Println(msg)
-			log.Println(err)
-		}
-		chk := fmt.Sprintf("${%s.distfile} \\\n%s", pkg.Project, csums.valueString(24))
-		if i < len(deps)-1 {
-			chk = chk + " \\\n" + strings.Repeat(" ", 20)
-		}
-		ret = ret + chk
-	}
-	return ret, nil
+	return ret + csums.valueString(indent)
 }
