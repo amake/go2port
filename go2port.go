@@ -23,6 +23,10 @@ import (
 var version = "dev"
 
 func main() {
+
+	// Don't prefix log lines with time
+	log.SetFlags(0)
+
 	app := cli.NewApp()
 	app.Name = "go2port"
 	app.Usage = "Generate a MacPorts portfile from a Go project"
