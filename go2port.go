@@ -496,17 +496,15 @@ func (csums *Checksums) valueString(indentSize int) string {
 }
 
 func checksumsStr(pkg Package, depCount int) string {
-	ret := "checksums           "
-	indent := 20
-	if depCount > 0 {
-		ret = "checksums           ${distname}${extract.suffix} \\\n"
-		indent = 24
-	}
 	csums, err := checksums(pkg)
 	if debugOn && err != nil {
 		msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
 		log.Println(msg)
 		log.Println(err)
 	}
-	return ret + csums.valueString(indent)
+	if depCount > 0 {
+		return "checksums           ${distname}${extract.suffix} \\\n" + csums.valueString(24)
+	} else {
+		return "checksums           " + strings.TrimSpace(csums.valueString(20))
+	}
 }
