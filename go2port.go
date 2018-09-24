@@ -174,7 +174,7 @@ func updateOne(portname string, version string, outfile string) error {
 		return err
 	}
 	portfileOldStr := string(portfileOld)
-	pkgstr := packageFromPortfile(portfileOldStr)
+	pkgstr, err := packageFromPortfile(portfileOldStr)
 	if pkgstr == "" {
 		msg := fmt.Sprintf("Could not detect Go package from portfile %s", portfilePath)
 		return errors.New(msg)
@@ -213,9 +213,12 @@ func updateOne(portname string, version string, outfile string) error {
 
 var setupPkgRegexp = regexp.MustCompile("go.setup\\s+(\\S+)")
 
-func packageFromPortfile(portfile string) string {
+func packageFromPortfile(portfile string) (string, error) {
 	match := setupPkgRegexp.FindStringSubmatch(portfile)
-	return match[1]
+	if len(match) < 2 {
+		return "", errors.New("Could not detect package name in portfile")
+	}
+	return match[1], nil
 }
 
 var checksumsPattern = regexp.MustCompile("checksums(?:.*\\\\\n)*.*")
