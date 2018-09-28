@@ -92,6 +92,10 @@ long_description
 {{.Checksums}}
 
 {{.GoVendors}}
+
+destroot {
+    xinstall -m 755 ${worksrcpath}/${name} ${destroot}${prefix}/bin/
+}
 `
 
 func generate(c *cli.Context) error {
