@@ -64,6 +64,10 @@ go.vendors          github.com/BurntSushi/toml \
                         rmd160  56eb283b31feac8db4ede3e24768e0f9999913d2 \
                         sha256  34dc73c7798abfa3bb96c46c25002ccc5b92543dc3e008a31e0ae94c2528e52b \
                         size    70231
+
+destroot {
+    xinstall -m 755 ${worksrcpath}/${name} ${destroot}${prefix}/bin/
+}
 ```
 
 If the project is hosted on GitHub or Bitbucket, go2port will automatically
