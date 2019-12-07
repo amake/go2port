@@ -74,8 +74,8 @@ If the project is hosted on GitHub or Bitbucket, go2port will automatically
 calculate the checksums for the main distfile.
 
 If the project uses a supported lockfile format for dependencies (currently
-`glide.lock` or `Gopkg.lock`), go2port will also automatically add `go.vendors`
-entries for dependencies.
+`go.sum`, `glide.lock` or `Gopkg.lock`), go2port will also automatically add
+`go.vendors` entries for dependencies.
 
 See the [golang PortGroup
 documentation](https://guide.macports.org/#reference.portgroup.golang) for more
