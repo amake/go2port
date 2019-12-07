@@ -341,7 +341,11 @@ func newPackage(pkg string, version string) (Package, error) {
 }
 
 func dependencies(pkg Package) ([]Dependency, error) {
-	deps, err := glideDependencies(pkg)
+	deps, err := moduleDependencies(pkg)
+	if err == nil {
+		return deps, nil
+	}
+	deps, err = glideDependencies(pkg)
 	if err == nil {
 		return deps, nil
 	}
@@ -363,6 +367,87 @@ func rawFileUrl(pkg Package, file string) (string, error) {
 	default:
 		return "", errors.New(fmt.Sprintf("Unsupported domain: %s", pkg.Host))
 	}
+}
+
+func moduleDependencies(pkg Package) ([]Dependency, error) {
+	modUrl, err := rawFileUrl(pkg, "go.sum")
+	if err != nil {
+		return nil, err
+	}
+	res, err := http.Get(modUrl)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		msg := fmt.Sprintf("go.sum not available; HTTP status=%d", res.StatusCode)
+		return nil, errors.New(msg)
+	}
+	modBytes, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	lock, err := readGoSum(modUrl, modBytes)
+	if err != nil {
+		return nil, err
+	}
+	return lock, nil
+}
+
+// emptyGoModHash and readGoSum are adapted from go internal code:
+// https://github.com/golang/vgo/blob/9d567625acf4c5e156b9890bf6feb16eb9fa5c51/vendor/cmd/go/internal/modfetch/fetch.go#L193
+
+// emptyGoModHash is the hash of a 1-file tree containing a 0-length go.mod.
+// A bug caused us to write these into go.sum files for non-modules.
+// We detect and remove them.
+const emptyGoModHash = "h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY="
+
+func readGoSum(file string, data []byte) ([]Dependency, error) {
+	var mods []Dependency
+	lineno := 0
+	for len(data) > 0 {
+		var line []byte
+		lineno++
+		i := bytes.IndexByte(data, '\n')
+		if i < 0 {
+			line, data = data, nil
+		} else {
+			line, data = data[:i], data[i+1:]
+		}
+		f := strings.Fields(string(line))
+		if len(f) == 0 {
+			// blank line; skip it
+			continue
+		}
+		if len(f) != 3 {
+			msg := fmt.Sprintf("go: malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
+			return nil, errors.New(msg)
+		}
+		if f[2] == emptyGoModHash {
+			// Old bug; drop it.
+			continue
+		}
+		if strings.HasSuffix(f[1], "/go.mod") {
+			// Skip go.mod entry; see
+			// https://golang.org/cmd/go/#hdr-Module_authentication_using_go_sum
+			continue
+		}
+		version := readVersion(f[1])
+		mod := Dependency{Name: f[0], Version: version}
+		mods = append(mods, mod)
+	}
+	return mods, nil
+}
+
+func readVersion(raw string) string {
+	f := strings.FieldsFunc(raw, func(r rune) bool { return r == '-' })
+	if len(f) != 3 {
+		// Regular version string
+		return raw
+	}
+	// Probably a pseudo-version; we only want the hash
+	// https://golang.org/cmd/go/#hdr-Pseudo_versions
+	return f[2]
 }
 
 func glideDependencies(pkg Package) ([]Dependency, error) {
