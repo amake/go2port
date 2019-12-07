@@ -432,11 +432,18 @@ func readGoSum(file string, data []byte) ([]Dependency, error) {
 			// https://golang.org/cmd/go/#hdr-Module_authentication_using_go_sum
 			continue
 		}
+		name := readName(f[0])
 		version := readVersion(f[1])
-		mod := Dependency{Name: f[0], Version: version}
+		mod := Dependency{Name: name, Version: version}
 		mods = append(mods, mod)
 	}
 	return mods, nil
+}
+
+var pkgVerReg = regexp.MustCompile("/v\\d+$")
+
+func readName(raw string) string {
+	return pkgVerReg.ReplaceAllString(raw, "")
 }
 
 func readVersion(raw string) string {
