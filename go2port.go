@@ -440,14 +440,22 @@ func readGoSum(file string, data []byte) ([]Dependency, error) {
 }
 
 func readVersion(raw string) string {
-	f := strings.FieldsFunc(raw, func(r rune) bool { return r == '-' })
-	if len(f) != 3 {
-		// Regular version string
-		return raw
+	f := strings.FieldsFunc(raw, func(r rune) bool { return strings.ContainsRune("-+", r) })
+	if len(f) == 4 && f[3] == "incompatible" {
+		// A pseudo-version with +incompatible
+		// https://golang.org/cmd/go/#hdr-Pseudo_versions
+		return f[2]
 	}
-	// Probably a pseudo-version; we only want the hash
-	// https://golang.org/cmd/go/#hdr-Pseudo_versions
-	return f[2]
+	if len(f) == 3 {
+		// A pseudo-version
+		return f[2]
+	}
+	if len(f) == 2 && f[1] == "incompatible" {
+		// A normal version with +incompatible
+		return f[1]
+	}
+	// Just use the raw version
+	return raw
 }
 
 func glideDependencies(pkg Package) ([]Dependency, error) {
