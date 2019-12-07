@@ -452,7 +452,7 @@ func readVersion(raw string) string {
 	}
 	if len(f) == 2 && f[1] == "incompatible" {
 		// A normal version with +incompatible
-		return f[1]
+		return f[0]
 	}
 	// Just use the raw version
 	return raw
