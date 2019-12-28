@@ -9,7 +9,7 @@ go2port is a tool for generating and updating
 Install with MacPorts:
 
 ```
-sudo macports install go2port
+sudo port install go2port
 ```
 
 Or with Go:
