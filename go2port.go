@@ -353,6 +353,10 @@ func dependencies(pkg Package) ([]Dependency, error) {
 	if err == nil {
 		return deps, nil
 	}
+	deps, err = glockDependencies(pkg)
+	if err == nil {
+		return deps, nil
+	}
 	return nil, err
 }
 
@@ -515,6 +519,49 @@ func gopkgDependencies(pkg Package) ([]Dependency, error) {
 		return nil, err
 	}
 	return lock.Projects, nil
+}
+
+func glockDependencies(pkg Package) ([]Dependency, error) {
+	lockUrl, err := rawFileUrl(pkg, "GLOCKFILE")
+	if err != nil {
+		return nil, err
+	}
+	res, err := http.Get(lockUrl)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != 200 {
+		msg := fmt.Sprintf("GLOCKFILE not available; HTTP status=%d", res.StatusCode)
+		return nil, errors.New(msg)
+	}
+	glockBytes, err := ioutil.ReadAll(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	return readGlockfile(glockBytes), nil
+}
+
+func readGlockfile(data []byte) []Dependency {
+	var mods []Dependency
+	for len(data) > 0 {
+		var line []byte
+		i := bytes.IndexByte(data, '\n')
+		if i < 0 {
+			line, data = data, nil
+		} else {
+			line, data = data[:i], data[i+1:]
+		}
+		f := strings.Fields(string(line))
+		if len(f) != 2 {
+			continue
+		}
+		name := f[0]
+		version := f[1]
+		mod := Dependency{Name: name, Version: version}
+		mods = append(mods, mod)
+	}
+	return mods
 }
 
 func goVendors(deps []Dependency) string {
