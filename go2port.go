@@ -5,18 +5,21 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"github.com/BurntSushi/toml"
-	"github.com/urfave/cli"
-	"golang.org/x/crypto/ripemd160"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/BurntSushi/toml"
+	"github.com/urfave/cli"
+	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/net/html"
+	"gopkg.in/yaml.v2"
 )
 
 // Build with -ldflags "-X main.version=$VERSION" to overwrite
@@ -330,12 +333,67 @@ func newPackage(pkg string, version string) (Package, error) {
 		default:
 			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
 		}
-	default:
+	case "bitbucket.org":
+		fallthrough
+	case "github.com":
 		if len(parts) < 3 {
 			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
 		}
 		ret.Author = parts[1]
 		ret.Project = parts[2]
+	default:
+		res, err := http.Get("https://" + pkg + "?go-get=1")
+		if err != nil {
+			return ret, err
+		}
+		doc, err := html.Parse(res.Body)
+		res.Body.Close()
+		if err != nil {
+			return ret, err
+		}
+		var f func(*html.Node) bool
+		f = func(n *html.Node) bool {
+			if n.Type == html.ElementNode && n.Data == "meta" {
+				isGoImport := false
+				content := ""
+				for _, a := range n.Attr {
+					if a.Key == "name" && a.Val == "go-import" {
+						isGoImport = true
+					} else if a.Key == "content" {
+						content = a.Val
+					}
+				}
+				if !isGoImport {
+					return false
+				}
+				u, err := url.Parse(strings.Fields(content)[2])
+				if err != nil {
+					return false
+				}
+				parts = strings.Split(u.Path, "/")
+				if len(parts) < 2 {
+					return false
+				}
+				ret.Host = u.Host
+				if len(parts) >= 3 {
+					ret.Author = parts[1]
+					ret.Project = parts[2]
+				} else {
+					ret.Project = parts[1]
+				}
+				ret.Project = strings.TrimSuffix(ret.Project, ".git")
+				return true
+			}
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				if f(c) {
+					return true
+				}
+			}
+			return false
+		}
+		if !f(doc) {
+			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
+		}
 	}
 	return ret, nil
 }
@@ -614,8 +672,13 @@ func tarballUrl(pkg Package) (string, error) {
 	case "bitbucket.org":
 		return fmt.Sprintf("https://bitbucket.org/%s/%s/get/%s.tar.gz",
 			pkg.Author, pkg.Project, pkg.Version), nil
+	case "go.googlesource.com":
+		return fmt.Sprintf("https://go.googlesource.com/%s/+archive/refs/tags/%s.tar.gz",
+			pkg.Project, pkg.Version), nil
 	default:
-		return "", errors.New(fmt.Sprintf("Unsupported domain: %s", pkg.Host))
+		// Custom domain GitLab repos
+		return fmt.Sprintf("https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz",
+			pkg.Host, pkg.Author, pkg.Project, pkg.Version, pkg.Project, pkg.Version), nil
 	}
 }
 
