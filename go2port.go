@@ -407,7 +407,7 @@ func moduleDependencies(pkg Package) ([]Dependency, error) {
 const emptyGoModHash = "h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY="
 
 func readGoSum(file string, data []byte) ([]Dependency, error) {
-	var mods []Dependency
+	var mods = make(map[string]Dependency)
 	lineno := 0
 	for len(data) > 0 {
 		var line []byte
@@ -438,10 +438,24 @@ func readGoSum(file string, data []byte) ([]Dependency, error) {
 		}
 		name := readName(f[0])
 		version := readVersion(f[1])
-		mod := Dependency{Name: name, Version: version}
-		mods = append(mods, mod)
+		if debugOn {
+			msg := fmt.Sprintf("Found dependency: %s (%s)", name, version)
+			log.Println(msg)
+		}
+		mods[name] = Dependency{Name: name, Version: version}
 	}
-	return mods, nil
+
+	var modValues = make([]Dependency, len(mods))
+	i := 0
+	for _, v := range mods {
+		modValues[i] = v
+		if debugOn {
+			msg := fmt.Sprintf("Using dependency: %s (%s)", v.Name, v.Version)
+			log.Println(msg)
+		}
+		i++
+	}
+	return modValues, nil
 }
 
 var pkgVerReg = regexp.MustCompile("/v\\d+$")
