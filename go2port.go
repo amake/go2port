@@ -248,6 +248,7 @@ type Package struct {
 	Author  string
 	Project string
 	Id      string
+	Alias   string
 	Version string
 }
 
@@ -357,6 +358,7 @@ func newPackage(pkg string, version string) (Package, error) {
 		} else {
 			return ret, errors.New(fmt.Sprintf("Too few parts: %s", parts))
 		}
+		ret.Alias = pkg
 	}
 	return ret, nil
 }
@@ -670,9 +672,12 @@ func goVendors(deps []Dependency) string {
 	}
 	ret := "go.vendors          "
 	for i, dep := range deps {
-		ret = ret + dep.Name + " \\\n"
-		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), dep.Version)
 		pkg, err := newPackage(dep.Name, dep.Version)
+		ret = ret + pkg.Id + " \\\n"
+		if pkg.Alias != "" {
+			ret = ret + fmt.Sprintf("%salias   %s \\\n", strings.Repeat(" ", 24), pkg.Alias)
+		}
+		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), dep.Version)
 		if debugOn && err != nil {
 			msg := fmt.Sprintf("Could not parse package ID: %s", dep.Name)
 			log.Println(msg)
