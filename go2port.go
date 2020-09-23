@@ -703,6 +703,9 @@ func goVendors(deps []Dependency) string {
 			log.Println(msg)
 			log.Println(err)
 		}
+		if debugOn {
+			log.Printf("Calculating checksums for %s", pkg.Id)
+		}
 		csums, err := checksums(pkg)
 		if debugOn && err != nil {
 			msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
