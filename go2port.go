@@ -464,6 +464,9 @@ func rawFileUrl(pkg Package, file string) (string, error) {
 
 func moduleDependencies(pkg Package) ([]Dependency, error) {
 	modUrl, err := rawFileUrl(pkg, "go.sum")
+	if debugOn {
+		log.Printf("Looking for go.sum at %s", modUrl)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -577,6 +580,9 @@ func glideDependencies(pkg Package) ([]Dependency, error) {
 	if err != nil {
 		return nil, err
 	}
+	if debugOn {
+		log.Printf("Looking for glide.lock at %s", lockUrl)
+	}
 	res, err := http.Get(lockUrl)
 	if err != nil {
 		return nil, err
@@ -603,6 +609,9 @@ func gopkgDependencies(pkg Package) ([]Dependency, error) {
 	if err != nil {
 		return nil, err
 	}
+	if debugOn {
+		log.Printf("Looking for Gopkg.lock at %s", lockUrl)
+	}
 	res, err := http.Get(lockUrl)
 	if err != nil {
 		return nil, err
@@ -628,6 +637,9 @@ func glockDependencies(pkg Package) ([]Dependency, error) {
 	lockUrl, err := rawFileUrl(pkg, "GLOCKFILE")
 	if err != nil {
 		return nil, err
+	}
+	if debugOn {
+		log.Printf("Looking for GLOCKFILE at %s", lockUrl)
 	}
 	res, err := http.Get(lockUrl)
 	if err != nil {
