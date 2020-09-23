@@ -342,60 +342,88 @@ func newPackage(pkg string, version string) (Package, error) {
 		ret.Author = parts[1]
 		ret.Project = parts[2]
 	default:
-		res, err := http.Get("https://" + pkg + "?go-get=1")
+		parts, err := resolvePackage(pkg)
 		if err != nil {
 			return ret, err
 		}
-		doc, err := html.Parse(res.Body)
-		res.Body.Close()
-		if err != nil {
-			return ret, err
-		}
-		var f func(*html.Node) bool
-		f = func(n *html.Node) bool {
-			if n.Type == html.ElementNode && n.Data == "meta" {
-				isGoImport := false
-				content := ""
-				for _, a := range n.Attr {
-					if a.Key == "name" && a.Val == "go-import" {
-						isGoImport = true
-					} else if a.Key == "content" {
-						content = a.Val
-					}
-				}
-				if !isGoImport {
-					return false
-				}
-				u, err := url.Parse(strings.Fields(content)[2])
-				if err != nil {
-					return false
-				}
-				parts = strings.Split(u.Path, "/")
-				if len(parts) < 2 {
-					return false
-				}
-				ret.Host = u.Host
-				if len(parts) >= 3 {
-					ret.Author = parts[1]
-					ret.Project = parts[2]
-				} else {
-					ret.Project = parts[1]
-				}
-				ret.Project = strings.TrimSuffix(ret.Project, ".git")
-				return true
-			}
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				if f(c) {
-					return true
-				}
-			}
-			return false
-		}
-		if !f(doc) {
-			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
+		ret.Id = strings.Join(parts, "/")
+		ret.Host = parts[0]
+		// TODO: What if there's really more than 3?
+		if len(parts) >= 3 {
+			ret.Author = parts[1]
+			ret.Project = parts[2]
+		} else if len(parts) == 2 {
+			ret.Project = parts[1]
+		} else {
+			return ret, errors.New(fmt.Sprintf("Too few parts: %s", parts))
 		}
 	}
 	return ret, nil
+}
+
+func resolvePackage(pkg string) ([]string, error) {
+	res, err := http.Get("https://" + pkg + "?go-get=1")
+	if err != nil {
+		return nil, err
+	}
+	doc, err := html.Parse(res.Body)
+	res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	var parts []string
+	var f func(*html.Node) bool
+	f = func(n *html.Node) bool {
+		if n.Type == html.ElementNode && n.Data == "meta" {
+			isGoImport := false
+			content := ""
+			for _, a := range n.Attr {
+				if a.Key == "name" && a.Val == "go-import" {
+					isGoImport = true
+				} else if a.Key == "content" {
+					content = a.Val
+				}
+			}
+			if !isGoImport {
+				return false
+			}
+			u, err := url.Parse(strings.Fields(content)[2])
+			if err != nil {
+				return false
+			}
+			pathParts := strings.Split(u.Path, "/")
+			// Filter empty strings
+			n := 0
+			for _, part := range pathParts {
+				if part != "" {
+					pathParts[n] = part
+					n++
+				}
+			}
+			pathParts = pathParts[:n]
+			if len(pathParts) == 0 {
+				return false
+			}
+			parts = append([]string{u.Host}, pathParts...)
+			// Remove ".git" suffix
+			parts[len(parts)-1] = strings.TrimSuffix(parts[len(parts)-1], ".git")
+			if debugOn {
+				log.Printf("Resolved dependency %s to %s", pkg, strings.Join(parts, "/"))
+			}
+			return true
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			if f(c) {
+				return true
+			}
+		}
+		return false
+	}
+	if f(doc) {
+		return parts, nil
+	} else {
+		return nil, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
+	}
 }
 
 func dependencies(pkg Package) ([]Dependency, error) {
