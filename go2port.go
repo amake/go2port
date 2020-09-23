@@ -92,7 +92,7 @@ description
 
 long_description
 
-{{.Checksums}}
+{{.PackageAlias}}{{.Checksums}}
 
 {{.GoVendors}}
 
@@ -288,10 +288,11 @@ func generateOne(pkg Package, tmplate string) ([]byte, error) {
 	tplt := template.Must(template.New("portfile").Parse(tmplate))
 
 	tvars := map[string]string{
-		"PackageId": pkg.Id,
-		"Version":   pkg.Version,
-		"Checksums": checksumsStr(pkg, len(deps)),
-		"GoVendors": goVendors(deps),
+		"PackageId":    pkg.Id,
+		"PackageAlias": packageAlias(pkg),
+		"Version":      pkg.Version,
+		"Checksums":    checksumsStr(pkg, len(deps)),
+		"GoVendors":    goVendors(deps),
 	}
 
 	err = tplt.Execute(&buf, tvars)
@@ -664,6 +665,13 @@ func readGlockfile(data []byte) []Dependency {
 		mods = append(mods, mod)
 	}
 	return mods
+}
+
+func packageAlias(pkg Package) string {
+	if pkg.Alias == "" {
+		return ""
+	}
+	return fmt.Sprintf("go.package%s%s\n\n", strings.Repeat(" ", 10), pkg.Alias)
 }
 
 func goVendors(deps []Dependency) string {
