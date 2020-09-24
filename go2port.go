@@ -693,9 +693,11 @@ func goVendors(deps []Dependency) string {
 	ret := "go.vendors          "
 	for i, dep := range deps {
 		pkg, err := newPackage(dep.Name, dep.Version)
-		ret = ret + pkg.Id + " \\\n"
-		if pkg.Alias != "" {
-			ret = ret + fmt.Sprintf("%salias   %s \\\n", strings.Repeat(" ", 24), pkg.Alias)
+		if pkg.Alias == "" {
+			ret = ret + pkg.Id + " \\\n"
+		} else {
+			ret = ret + pkg.Alias + " \\\n"
+			ret = ret + fmt.Sprintf("%srepo    %s \\\n", strings.Repeat(" ", 24), pkg.Id)
 		}
 		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), dep.Version)
 		if debugOn && err != nil {
