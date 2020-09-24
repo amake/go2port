@@ -730,9 +730,14 @@ func tarballUrl(pkg Package) (string, error) {
 	case "bitbucket.org":
 		return fmt.Sprintf("https://bitbucket.org/%s/%s/get/%s.tar.gz",
 			pkg.Author, pkg.Project, pkg.Version), nil
-	case "go.googlesource.com":
-		return fmt.Sprintf("https://go.googlesource.com/%s/+archive/refs/tags/%s.tar.gz",
-			pkg.Project, pkg.Version), nil
+
+	// go.googlesource.com appears to serve slightly different tarballs each
+	// time you hit the URL, so it's impossible to get a stable checksum. DON'T
+	// enable until this issue has been resolved.
+	//
+	// case "go.googlesource.com":
+	// 	return fmt.Sprintf("https://go.googlesource.com/%s/+archive/refs/tags/%s.tar.gz",
+	// 		pkg.Project, pkg.Version), nil
 	default:
 		// Custom domain GitLab repos
 		return fmt.Sprintf("https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz",
