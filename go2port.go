@@ -390,7 +390,12 @@ func resolvePackage(pkg string) ([]string, error) {
 			if !isGoImport {
 				return false
 			}
-			u, err := url.Parse(strings.Fields(content)[2])
+			contentFields := strings.Fields(content)
+			importPrefix := contentFields[0]
+			if !strings.HasPrefix(pkg, importPrefix) {
+				return false
+			}
+			u, err := url.Parse(contentFields[2])
 			if err != nil {
 				return false
 			}
