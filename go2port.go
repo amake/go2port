@@ -52,6 +52,11 @@ func main() {
 					Usage: "output `FILE` (\"-\" for stdout)",
 					Value: "-",
 				},
+				cli.StringFlag{
+					Name:  "dir, d",
+					Usage: "directory of lockfile in repo",
+					Value: "/",
+				},
 			},
 
 			Action: generate,
@@ -120,7 +125,8 @@ func generate(c *cli.Context) error {
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
-		portfile, err := generateOne(pkg, portfileTemplate)
+		lockfileDir := c.String("dir")
+		portfile, err := generateOne(pkg, portfileTemplate, lockfileDir)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -148,7 +154,8 @@ func update(c *cli.Context) error {
 	for i := 0; i < c.NArg(); i = i + 2 {
 		portname := c.Args().Get(i)
 		version := c.Args().Get(i + 1)
-		err := updateOne(portname, version, outfile)
+		lockfileDir := c.String("dir")
+		err := updateOne(portname, version, outfile, lockfileDir)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -170,7 +177,7 @@ func getPortfilePath(portname string) (string, error) {
 	return strings.TrimSpace(stdout.String()), nil
 }
 
-func updateOne(portname string, version string, outfile string) error {
+func updateOne(portname string, version string, outfile string, lockfileDir string) error {
 	toStdOut := outfile == "-"
 	portfilePath, err := getPortfilePath(portname)
 	if err != nil {
@@ -203,7 +210,7 @@ func updateOne(portname string, version string, outfile string) error {
 	if !toStdOut {
 		log.Printf("Updating existing portfile: %s", portfilePath)
 	}
-	portfileNew, err := generateOne(pkg, tmplate)
+	portfileNew, err := generateOne(pkg, tmplate, lockfileDir)
 	if err != nil {
 		return err
 	}
@@ -276,8 +283,8 @@ type GopkgLock struct {
 	Projects []Dependency
 }
 
-func generateOne(pkg Package, tmplate string) ([]byte, error) {
-	deps, err := dependencies(pkg)
+func generateOne(pkg Package, tmplate string, lockfileDir string) ([]byte, error) {
+	deps, err := dependencies(pkg, lockfileDir)
 	if debugOn && err != nil {
 		msg := fmt.Sprintf("Could not retrieve dependencies for package: %s", pkg.Id)
 		log.Println(msg)
@@ -434,41 +441,41 @@ func resolvePackage(pkg string) ([]string, error) {
 	}
 }
 
-func dependencies(pkg Package) ([]Dependency, error) {
-	deps, err := moduleDependencies(pkg)
+func dependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
+	deps, err := moduleDependencies(pkg, lockfileDir)
 	if err == nil {
 		return deps, nil
 	}
-	deps, err = glideDependencies(pkg)
+	deps, err = glideDependencies(pkg, lockfileDir)
 	if err == nil {
 		return deps, nil
 	}
-	deps, err = gopkgDependencies(pkg)
+	deps, err = gopkgDependencies(pkg, lockfileDir)
 	if err == nil {
 		return deps, nil
 	}
-	deps, err = glockDependencies(pkg)
+	deps, err = glockDependencies(pkg, lockfileDir)
 	if err == nil {
 		return deps, nil
 	}
 	return nil, err
 }
 
-func rawFileUrl(pkg Package, file string) (string, error) {
+func rawFileUrl(pkg Package, dir string, file string) (string, error) {
 	switch pkg.Host {
 	case "github.com":
-		return fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s",
-			pkg.Author, pkg.Project, pkg.Version, file), nil
+		return fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s/%s",
+			pkg.Author, pkg.Project, pkg.Version, dir, file), nil
 	case "bitbucket.org":
-		return fmt.Sprintf("https://bitbucket.org/%s/%s/raw/%s/%s",
-			pkg.Author, pkg.Project, pkg.Version, file), nil
+		return fmt.Sprintf("https://bitbucket.org/%s/%s/raw/%s/%s/%s",
+			pkg.Author, pkg.Project, pkg.Version, dir, file), nil
 	default:
 		return "", errors.New(fmt.Sprintf("Unsupported domain: %s", pkg.Host))
 	}
 }
 
-func moduleDependencies(pkg Package) ([]Dependency, error) {
-	modUrl, err := rawFileUrl(pkg, "go.sum")
+func moduleDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
+	modUrl, err := rawFileUrl(pkg, lockfileDir, "go.sum")
 	if debugOn {
 		log.Printf("Looking for go.sum at %s", modUrl)
 	}
@@ -580,8 +587,8 @@ func readVersion(raw string) string {
 	return raw
 }
 
-func glideDependencies(pkg Package) ([]Dependency, error) {
-	lockUrl, err := rawFileUrl(pkg, "glide.lock")
+func glideDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
+	lockUrl, err := rawFileUrl(pkg, lockfileDir, "glide.lock")
 	if err != nil {
 		return nil, err
 	}
@@ -609,8 +616,8 @@ func glideDependencies(pkg Package) ([]Dependency, error) {
 	return lock.Imports, nil
 }
 
-func gopkgDependencies(pkg Package) ([]Dependency, error) {
-	lockUrl, err := rawFileUrl(pkg, "Gopkg.lock")
+func gopkgDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
+	lockUrl, err := rawFileUrl(pkg, lockfileDir, "Gopkg.lock")
 	if err != nil {
 		return nil, err
 	}
@@ -638,8 +645,8 @@ func gopkgDependencies(pkg Package) ([]Dependency, error) {
 	return lock.Projects, nil
 }
 
-func glockDependencies(pkg Package) ([]Dependency, error) {
-	lockUrl, err := rawFileUrl(pkg, "GLOCKFILE")
+func glockDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
+	lockUrl, err := rawFileUrl(pkg, lockfileDir, "GLOCKFILE")
 	if err != nil {
 		return nil, err
 	}
