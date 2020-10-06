@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -549,15 +550,25 @@ func readGoSum(file string, data []byte) ([]Dependency, error) {
 		mods[name] = Dependency{Name: name, Version: version}
 	}
 
+	pkgs := make([]string, 0, len(mods))
+	for pkg := range mods {
+		pkgs = append(pkgs, pkg)
+	}
+	// Reverse-sort by package ID in order to
+	// - Have a stable output order, and
+	// - Ensure that IDs that are prefixes of other IDs (foo.com/a/b &
+	//   foo.com/a/bb) come later, which works around some issues identifying
+	//   extracted distfiles in post-extract
+	sort.Sort(sort.Reverse(sort.StringSlice(pkgs)))
+
 	var modValues = make([]Dependency, len(mods))
-	i := 0
-	for _, v := range mods {
-		modValues[i] = v
+	for i, pkg := range pkgs {
+		dep := mods[pkg]
+		modValues[i] = dep
 		if debugOn {
-			msg := fmt.Sprintf("Using dependency: %s (%s)", v.Name, v.Version)
+			msg := fmt.Sprintf("Using dependency: %s (%s)", dep.Name, dep.Version)
 			log.Println(msg)
 		}
-		i++
 	}
 	return modValues, nil
 }
