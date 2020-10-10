@@ -89,7 +89,7 @@ var portfileTemplate = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tab
 PortSystem          1.0
 PortGroup           golang 1.0
 
-go.setup            {{.PackageId}} {{.Version}}
+go.setup            {{.PackageId}} {{.Version}} {{.Prefix}}
 categories
 maintainers
 license
@@ -251,6 +251,8 @@ func templateFromPortfile(pkg Package, portfile string) (string, error) {
 	return portfile, nil
 }
 
+var versionPattern = regexp.MustCompile("^(?P<prefix>\\D+)(?P<version>.*)")
+
 type Package struct {
 	Host    string
 	Author  string
@@ -295,10 +297,13 @@ func generateOne(pkg Package, tmplate string, lockfileDir string) ([]byte, error
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(tmplate))
 
+	prefix, version := parseVersionPrefix(pkg.Version)
+
 	tvars := map[string]string{
 		"PackageId":    pkg.Id,
 		"PackageAlias": packageAlias(pkg),
-		"Version":      pkg.Version,
+		"Prefix":       prefix,
+		"Version":      version,
 		"Checksums":    checksumsStr(pkg, len(deps)),
 		"GoVendors":    goVendors(deps),
 	}
@@ -821,4 +826,18 @@ func checksumsStr(pkg Package, depCount int) string {
 	} else {
 		return "checksums           " + strings.TrimSpace(csums.valueString(20))
 	}
+}
+
+// parseVersionPrefix takes a package version as a string and returns the prefix
+// and version number as strings.
+func parseVersionPrefix(versionstr string) (prefix string, version string) {
+	version = versionstr
+
+	if versionPattern.MatchString(versionstr) {
+		results := versionPattern.FindStringSubmatch(versionstr)
+		prefix = results[1]
+		version = results[2]
+	}
+
+	return prefix, version
 }
