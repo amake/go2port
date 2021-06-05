@@ -470,6 +470,9 @@ func rawFileUrl(pkg Package, dir string, file string) (string, error) {
 	case "bitbucket.org":
 		return fmt.Sprintf("https://bitbucket.org/%s/%s/raw/%s/%s/%s",
 			pkg.Author, pkg.Project, pkg.Version, dir, file), nil
+	case "git.sr.ht":
+		return fmt.Sprintf("https://git.sr.ht/%s/%s/blob/%s/%s/%s",
+			pkg.Author, pkg.Project, pkg.Version, dir, file), nil
 	default:
 		return "", errors.New(fmt.Sprintf("Unsupported domain: %s", pkg.Host))
 	}
@@ -752,6 +755,9 @@ func tarballUrl(pkg Package) (string, error) {
 			pkg.Author, pkg.Project, pkg.Version), nil
 	case "bitbucket.org":
 		return fmt.Sprintf("https://bitbucket.org/%s/%s/get/%s.tar.gz",
+			pkg.Author, pkg.Project, pkg.Version), nil
+	case "git.sr.ht":
+		return fmt.Sprintf("https://git.sr.ht/%s/%s/archive/%s.tar.gz",
 			pkg.Author, pkg.Project, pkg.Version), nil
 
 	// go.googlesource.com appears to serve slightly different tarballs each
