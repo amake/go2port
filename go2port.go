@@ -473,6 +473,9 @@ func rawFileUrl(pkg Package, dir string, file string) (string, error) {
 	case "git.sr.ht":
 		return fmt.Sprintf("https://git.sr.ht/%s/%s/blob/%s/%s/%s",
 			pkg.Author, pkg.Project, pkg.Version, dir, file), nil
+	case "gitlab.com":
+		return fmt.Sprintf("https://gitlab.com/%s/%s/-/raw/%s/%s/%s",
+			pkg.Author, pkg.Project, pkg.Version, dir, file), nil
 	default:
 		return "", errors.New(fmt.Sprintf("Unsupported domain: %s", pkg.Host))
 	}
