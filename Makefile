@@ -21,7 +21,7 @@ test: test-bin test-get test-update
 
 .PHONY: test-bin
 test-bin: | go2port
-	@[[ $$(./go2port -v) = "go2port version dev" ]] && echo bin: ok
+	@[[ $$(./go2port -v) = "go2port version $(version)" ]] && echo bin: ok
 
 .PHONY: test-get
 test-get: | go2port
