@@ -13,19 +13,26 @@ go2port:
 
 .PHONY: clean
 clean: ## Remove generated files
-	rm -f go2port
+	rm -rf go2port test/tmp
 
 .PHONY: test
 test: ## Run tests
-test: test-bin test-get
+test: test-bin test-get test-update
 
 .PHONY: test-bin
 test-bin: | go2port
-	@[[ $$(./go2port -v) = "go2port version dev" ]] && echo ok
+	@[[ $$(./go2port -v) = "go2port version dev" ]] && echo bin: ok
 
 .PHONY: test-get
 test-get: | go2port
-	@diff <(./go2port get github.com/amake/go2port 3e11cdb) test/gold/Portfile.go2port && echo ok
+	@diff <(./go2port get github.com/amake/go2port 6d6dc46) test/gold/get/Portfile.go2port.6d6dc46 && echo glide.lock: ok
+	@diff <(./go2port get github.com/amake/go2port c72df06) test/gold/get/Portfile.go2port.c72df06 && echo Gopkg.lock: ok
+	@diff <(./go2port get github.com/amake/go2port 3e11cdb) test/gold/get/Portfile.go2port.3e11cdb && echo go.sum: ok
+
+.PHONY: test-update
+test-update:
+	@PATH="$(PWD)/test/bin:$$PATH" ./go2port update go2port 3e11cdb
+	@diff test/tmp/Portfile test/gold/update/Portfile.go2port.3e11cdb && echo update: ok
 
 .PHONY: help
 help: ## Show this help text

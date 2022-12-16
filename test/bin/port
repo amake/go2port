@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -euo pipefail
+
+if [[ "$1" = file ]] && [[ "$2" = go2port ]]; then
+    testdir=$(cd "$(dirname "$0")/.." && pwd)
+    mkdir -p "$testdir/tmp"
+    cp "$testdir/fixture/Portfile.go2port.0298d8d" "$testdir/tmp/Portfile"
+    echo "$testdir/tmp/Portfile"
+    exit 0
+fi
+
+exit 1
