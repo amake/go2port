@@ -30,7 +30,7 @@ test-get: | go2port
 	@diff <(./go2port get github.com/amake/go2port 3e11cdb) test/gold/get/Portfile.go2port.3e11cdb && echo go.sum: ok
 
 .PHONY: test-update
-test-update:
+test-update: | go2port
 	@PATH="$(PWD)/test/bin:$$PATH" ./go2port update go2port 3e11cdb
 	@diff test/tmp/Portfile test/gold/update/Portfile.go2port.3e11cdb && echo update: ok
 
