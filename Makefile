@@ -8,7 +8,7 @@ all: help
 build: ## Build the go2port binary
 build: go2port
 
-go2port: $(wildcard *.go)
+go2port: $(wildcard *.go) go.mod go.sum
 	go build -ldflags '-X main.version=$(version)'
 
 .PHONY: clean
