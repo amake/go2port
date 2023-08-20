@@ -15,6 +15,11 @@ go2port: $(wildcard *.go) go.mod go.sum
 clean: ## Remove generated files
 	rm -rf go2port test/tmp
 
+.PHONY: bump
+bump: ## Bump dependency versions
+bump:
+	go get -u && go mod tidy
+
 .PHONY: test
 test: ## Run tests
 test: test-bin test-get test-update
