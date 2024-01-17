@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -134,7 +134,7 @@ func generate(c *cli.Context) error {
 		if outfile == "-" {
 			_, err = fmt.Print(string(portfile))
 		} else {
-			err = ioutil.WriteFile(outfile, portfile, 0755)
+			err = os.WriteFile(outfile, portfile, 0755)
 		}
 		if err != nil {
 			return cli.NewExitError(err, 1)
@@ -184,7 +184,7 @@ func updateOne(portname string, version string, outfile string, lockfileDir stri
 	if err != nil {
 		return err
 	}
-	portfileOld, err := ioutil.ReadFile(portfilePath)
+	portfileOld, err := os.ReadFile(portfilePath)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func updateOne(portname string, version string, outfile string, lockfileDir stri
 	if toStdOut {
 		_, err = fmt.Print(string(portfileNew))
 	} else {
-		err = ioutil.WriteFile(outfile, portfileNew, 0755)
+		err = os.WriteFile(outfile, portfileNew, 0755)
 	}
 	if err != nil {
 		return err
@@ -497,7 +497,7 @@ func moduleDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
 		msg := fmt.Sprintf("go.sum not available; HTTP status=%d", res.StatusCode)
 		return nil, errors.New(msg)
 	}
-	modBytes, err := ioutil.ReadAll(res.Body)
+	modBytes, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		return nil, err
@@ -620,7 +620,7 @@ func glideDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
 		msg := fmt.Sprintf("glide.lock not available; HTTP status=%d", res.StatusCode)
 		return nil, errors.New(msg)
 	}
-	lockBytes, err := ioutil.ReadAll(res.Body)
+	lockBytes, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		return nil, err
@@ -649,7 +649,7 @@ func gopkgDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
 		msg := fmt.Sprintf("Gopkg.lock not available; HTTP status=%d", res.StatusCode)
 		return nil, errors.New(msg)
 	}
-	lockBytes, err := ioutil.ReadAll(res.Body)
+	lockBytes, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		return nil, err
@@ -678,7 +678,7 @@ func glockDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
 		msg := fmt.Sprintf("GLOCKFILE not available; HTTP status=%d", res.StatusCode)
 		return nil, errors.New(msg)
 	}
-	glockBytes, err := ioutil.ReadAll(res.Body)
+	glockBytes, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		return nil, err
@@ -791,7 +791,7 @@ func checksums(pkg Package) (Checksums, error) {
 	if err != nil {
 		return ret, err
 	}
-	tarball, err := ioutil.ReadAll(res.Body)
+	tarball, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
 		return ret, err
