@@ -791,6 +791,10 @@ func checksums(pkg Package) (Checksums, error) {
 	if err != nil {
 		return ret, err
 	}
+	if (res.StatusCode) != 200 {
+		msg := fmt.Sprintf("Could not retrieve tarball for %s; HTTP status=%d", pkg.Id, res.StatusCode)
+		return ret, errors.New(msg)
+	}
 	tarball, err := io.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
