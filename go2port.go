@@ -797,7 +797,11 @@ func checksums(pkg Package) (Checksums, error) {
 		return ret, err
 	}
 
-	ret.Size = fmt.Sprintf("%d", len(tarball))
+	size := len(tarball)
+	if size == 14 {
+		log.Printf("WARNING: Suspicious tarball size for %s", pkg.Id)
+	}
+	ret.Size = fmt.Sprintf("%d", size)
 
 	sha := sha256.New()
 	sha.Write(tarball)
