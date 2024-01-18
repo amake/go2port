@@ -240,7 +240,7 @@ var checksumsPattern = regexp.MustCompile("checksums(?:.*\\\\\n)*.*")
 var goVendorsPattern = regexp.MustCompile("go\\.vendors(?:.*\\\\\n)*.*")
 
 func templateFromPortfile(pkg Package, portfile string) (string, error) {
-	setupRegexp := fmt.Sprintf("(?P<before>go.setup\\s+%s\\s+)\\S+(?P<after>.*)", pkg.Id)
+	setupRegexp := fmt.Sprintf("(?P<before>go.setup\\s+%s\\s+)\\S+(?P<after>.*)", pkg.ResolvedId)
 	setupPattern, err := regexp.Compile(setupRegexp)
 	if err != nil {
 		return "", err
@@ -255,9 +255,12 @@ type Package struct {
 	Host    string
 	Author  string
 	Project string
-	Id      string
-	Alias   string
-	Version string
+	// The original ID of the package as recorded in the lockfile, etc.
+	Id string
+	// The resolved ID of the package, which may be different from the original
+	// e.g. when redirection services are used
+	ResolvedId string
+	Version    string
 }
 
 type Checksums struct {
@@ -296,7 +299,7 @@ func generateOne(pkg Package, tmplate string, lockfileDir string) ([]byte, error
 	tplt := template.Must(template.New("portfile").Parse(tmplate))
 
 	tvars := map[string]string{
-		"PackageId":    pkg.Id,
+		"PackageId":    pkg.ResolvedId,
 		"PackageAlias": packageAlias(pkg),
 		"Version":      pkg.Version,
 		"Checksums":    checksumsStr(pkg, len(deps)),
@@ -315,9 +318,10 @@ var verReg = regexp.MustCompile("\\..*$")
 func newPackage(pkg string, version string) (Package, error) {
 	parts := strings.Split(pkg, "/")
 	ret := Package{
-		Host:    parts[0],
-		Id:      pkg,
-		Version: version,
+		Host:       parts[0],
+		Id:         pkg,
+		ResolvedId: pkg,
+		Version:    version,
 	}
 	switch parts[0] {
 	case "golang.org":
@@ -356,7 +360,7 @@ func newPackage(pkg string, version string) (Package, error) {
 		if err != nil {
 			return ret, err
 		}
-		ret.Id = strings.Join(parts, "/")
+		ret.ResolvedId = strings.Join(parts, "/")
 		ret.Host = parts[0]
 		// TODO: What if there's really more than 3?
 		if len(parts) >= 3 {
@@ -367,7 +371,6 @@ func newPackage(pkg string, version string) (Package, error) {
 		} else {
 			return ret, errors.New(fmt.Sprintf("Too few parts: %s", parts))
 		}
-		ret.Alias = pkg
 	}
 	return ret, nil
 }
@@ -709,10 +712,10 @@ func readGlockfile(data []byte) []Dependency {
 }
 
 func packageAlias(pkg Package) string {
-	if pkg.Alias == "" {
+	if pkg.Id == pkg.ResolvedId {
 		return ""
 	}
-	return fmt.Sprintf("go.package%s%s\n\n", strings.Repeat(" ", 10), pkg.Alias)
+	return fmt.Sprintf("go.package%s%s\n\n", strings.Repeat(" ", 10), pkg.Id)
 }
 
 func goVendors(deps []Dependency) string {
@@ -722,11 +725,9 @@ func goVendors(deps []Dependency) string {
 	ret := "go.vendors          "
 	for i, dep := range deps {
 		pkg, err := newPackage(dep.Name, dep.Version)
-		if pkg.Alias == "" {
-			ret = ret + pkg.Id + " \\\n"
-		} else {
-			ret = ret + pkg.Alias + " \\\n"
-			ret = ret + fmt.Sprintf("%srepo    %s \\\n", strings.Repeat(" ", 24), pkg.Id)
+		ret = ret + pkg.Id + " \\\n"
+		if pkg.Id != pkg.ResolvedId {
+			ret = ret + fmt.Sprintf("%srepo    %s \\\n", strings.Repeat(" ", 24), pkg.ResolvedId)
 		}
 		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), dep.Version)
 		if debugOn && err != nil {
