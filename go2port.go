@@ -739,8 +739,8 @@ func goVendors(deps []Dependency) string {
 			log.Printf("Calculating checksums for %s", pkg.Id)
 		}
 		csums, err := checksums(pkg)
-		if debugOn && err != nil {
-			msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
+		if err != nil {
+			msg := fmt.Sprintf("WARNING: Could not calculate checksums for package: %s", pkg.Id)
 			log.Println(msg)
 			log.Println(err)
 		}
@@ -796,7 +796,7 @@ func checksums(pkg Package) (Checksums, error) {
 		return ret, err
 	}
 	if (res.StatusCode) != 200 {
-		msg := fmt.Sprintf("Could not retrieve tarball for %s; HTTP status=%d", pkg.Id, res.StatusCode)
+		msg := fmt.Sprintf("Could not retrieve tarball for %s; HTTP status=%d\nExpected at: %s", pkg.Id, res.StatusCode, tarUrl)
 		return ret, errors.New(msg)
 	}
 	tarball, err := io.ReadAll(res.Body)
