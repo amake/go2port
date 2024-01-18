@@ -764,13 +764,14 @@ func tarballUrl(pkg Package) (string, error) {
 		return fmt.Sprintf("https://git.sr.ht/%s/%s/archive/%s.tar.gz",
 			pkg.Author, pkg.Project, pkg.Version), nil
 
-	// go.googlesource.com appears to serve slightly different tarballs each
-	// time you hit the URL, so it's impossible to get a stable checksum. DON'T
-	// enable until this issue has been resolved.
-	//
-	// case "go.googlesource.com":
-	// 	return fmt.Sprintf("https://go.googlesource.com/%s/+archive/refs/tags/%s.tar.gz",
-	// 		pkg.Project, pkg.Version), nil
+	case "go.googlesource.com":
+		// go.googlesource.com appears to serve slightly different tarballs each
+		// time you hit the URL, so it's impossible to get a stable checksum.
+		// DON'T enable until this issue has been resolved.
+		//
+		// 	return fmt.Sprintf("https://go.googlesource.com/%s/+archive/refs/tags/%s.tar.gz",
+		// 		pkg.Project, pkg.Version), nil
+		return "", errors.New("go.googlesource.com is not supported; manually resolve to a mirror")
 	default:
 		// Custom domain GitLab repos
 		return fmt.Sprintf("https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz",
