@@ -323,6 +323,16 @@ func newPackage(pkg string, version string) (Package, error) {
 		ResolvedId: pkg,
 		Version:    version,
 	}
+	// Special case for protobuf, which is a very common dependency but is
+	// canonically hosted on go.googlesource.com which can't serve stable
+	// tarballs.
+	if pkg == "google.golang.org/protobuf" {
+		ret.Host = "github.com"
+		ret.Author = "protocolbuffers"
+		ret.Project = "protobuf-go"
+		ret.ResolvedId = "github.com/protocolbuffers/protobuf-go"
+		return ret, nil
+	}
 	switch parts[0] {
 	case "golang.org":
 		if len(parts) < 3 {
