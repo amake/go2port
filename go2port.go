@@ -784,6 +784,9 @@ func checksums(pkg Package) (Checksums, error) {
 		Size:   "0",
 	}
 	tarUrl, err := tarballUrl(pkg)
+	if debugOn {
+		log.Printf("Resolved %s to %s", pkg.Id, tarUrl)
+	}
 	if err != nil {
 		return ret, err
 	}
