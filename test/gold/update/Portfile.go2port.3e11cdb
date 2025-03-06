@@ -14,9 +14,9 @@ description         A tool for creating MacPorts portfiles for Go projects
 long_description    ${description}
 
 checksums           ${distname}${extract.suffix} \
-                        rmd160  184338c5596b7b7899e943d1dcd0c0a0f45ed3f6 \
-                        sha256  8be00d967a58042fe3cb87a3d79abb04496aadc2b34cb48ed5ac800990bfc7b5 \
-                        size    10535
+                        rmd160  46e6371bf6e8f0c3b16e713d6fcb366eaa7b2b5a \
+                        sha256  65ba8419afe5f2f483cf0620c98b2e9edb53f14b0f92a9c8b4b1ce110ab0b893 \
+                        size    10529
 
 go.vendors          gopkg.in/yaml.v2 \
                         lock    v2.4.0 \

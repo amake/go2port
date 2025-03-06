@@ -298,11 +298,21 @@ func generateOne(pkg Package, tmplate string, lockfileDir string) ([]byte, error
 	var buf bytes.Buffer
 	tplt := template.Must(template.New("portfile").Parse(tmplate))
 
+	tarUrl, err := tarballUrlForMain(pkg)
+	if debugOn {
+		log.Printf("Resolved %s to %s", pkg.Id, tarUrl)
+	}
+	if err != nil {
+		msg := fmt.Sprintf("WARNING: Could not calculate checksums for package: %s", pkg.Id)
+		log.Println(msg)
+		log.Println(err)
+	}
+
 	tvars := map[string]string{
 		"PackageId":    pkg.ResolvedId,
 		"PackageAlias": packageAlias(pkg),
 		"Version":      pkg.Version,
-		"Checksums":    checksumsStr(pkg, len(deps)),
+		"Checksums":    checksumsStr(pkg.Id, tarUrl, len(deps)),
 		"GoVendors":    goVendors(deps),
 	}
 
@@ -748,7 +758,16 @@ func goVendors(deps []Dependency) string {
 		if debugOn {
 			log.Printf("Calculating checksums for %s", pkg.Id)
 		}
-		csums, err := checksums(pkg)
+		tarUrl, err := tarballUrlForVendors(pkg)
+		if debugOn {
+			log.Printf("Resolved %s to %s", pkg.Id, tarUrl)
+		}
+		if err != nil {
+			msg := fmt.Sprintf("WARNING: Could not get tarball URL for package: %s", pkg.Id)
+			log.Println(msg)
+			log.Println(err)
+		}
+		csums, err := checksums(pkg.Id, tarUrl)
 		if err != nil {
 			msg := fmt.Sprintf("WARNING: Could not calculate checksums for package: %s", pkg.Id)
 			log.Println(msg)
@@ -762,7 +781,18 @@ func goVendors(deps []Dependency) string {
 	return ret
 }
 
-func tarballUrl(pkg Package) (string, error) {
+// Using github.tarball_from archive now for the main distfile
+func tarballUrlForMain(pkg Package) (string, error) {
+	switch pkg.Host {
+	case "github.com":
+		return fmt.Sprintf("https://github.com/%s/%s/archive/%s/dummy.tar.gz", pkg.Author, pkg.Project, pkg.Version), nil
+	default:
+		return tarballUrlForVendors(pkg)
+	}
+}
+
+// TODO(aaron): Move to GitHub archive tarball for vendors too
+func tarballUrlForVendors(pkg Package) (string, error) {
 	switch pkg.Host {
 	case "github.com":
 		return fmt.Sprintf("https://github.com/%s/%s/tarball/%s",
@@ -789,25 +819,18 @@ func tarballUrl(pkg Package) (string, error) {
 	}
 }
 
-func checksums(pkg Package) (Checksums, error) {
+func checksums(pkgId string, tarballUrl string) (Checksums, error) {
 	ret := Checksums{
 		Rmd160: "0",
 		Sha256: "0",
 		Size:   "0",
 	}
-	tarUrl, err := tarballUrl(pkg)
-	if debugOn {
-		log.Printf("Resolved %s to %s", pkg.Id, tarUrl)
-	}
-	if err != nil {
-		return ret, err
-	}
-	res, err := http.Get(tarUrl)
+	res, err := http.Get(tarballUrl)
 	if err != nil {
 		return ret, err
 	}
 	if (res.StatusCode) != 200 {
-		msg := fmt.Sprintf("Could not retrieve tarball for %s; HTTP status=%d\nExpected at: %s", pkg.Id, res.StatusCode, tarUrl)
+		msg := fmt.Sprintf("Could not retrieve tarball for %s; HTTP status=%d\nExpected at: %s", pkgId, res.StatusCode, tarballUrl)
 		return ret, errors.New(msg)
 	}
 	tarball, err := io.ReadAll(res.Body)
@@ -818,7 +841,7 @@ func checksums(pkg Package) (Checksums, error) {
 
 	size := len(tarball)
 	if size == 14 {
-		log.Printf("WARNING: Suspicious tarball size for %s", pkg.Id)
+		log.Printf("WARNING: Suspicious tarball size for %s", pkgId)
 	}
 	ret.Size = fmt.Sprintf("%d", size)
 
@@ -841,10 +864,10 @@ func (csums *Checksums) valueString(indentSize int) string {
 	return ret
 }
 
-func checksumsStr(pkg Package, depCount int) string {
-	csums, err := checksums(pkg)
+func checksumsStr(pkgId string, tarballUrl string, depCount int) string {
+	csums, err := checksums(pkgId, tarballUrl)
 	if debugOn && err != nil {
-		msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkg.Id)
+		msg := fmt.Sprintf("Could not calculate checksums for package: %s", pkgId)
 		log.Println(msg)
 		log.Println(err)
 	}

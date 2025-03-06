@@ -13,9 +13,9 @@ description
 long_description
 
 checksums           ${distname}${extract.suffix} \
-                        rmd160  804d974efb437296e559c7f2dbb834c861813724 \
-                        sha256  a9b250c74d38da6685f6f1dc6e18e37a456be8e9c8815161120cb0d638d7a39a \
-                        size    6879
+                        rmd160  f0278f6f146e001bef77c29cfd32163930ab02ce \
+                        sha256  099ab5ecae0fb658290bf351734e219926f7c82dcf322dfe71eb2360cbfd351a \
+                        size    6873
 
 go.vendors          github.com/BurntSushi/toml \
                         lock    b26d9c308763d68093482582cea63d69be07a0f0 \
