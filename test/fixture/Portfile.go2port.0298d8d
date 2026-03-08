@@ -53,11 +53,6 @@ go.vendors          github.com/urfave/cli \
                         rmd160  fc879bfbdef9e3ff50844def58404e2b5a613ab8 \
                         sha256  7cd492737641847266115f3060489a67f63581e521a8ec51efbc280c33fc991f \
                         size    11409 \
-                    github.com/russross/blackfriday \
-                        lock    v2.0.1 \
-                        rmd160  99cb49faff9bf24b8637dcdb3602c27c115810f3 \
-                        sha256  4078d2cd3b1c6952133b214e4eaca95f3b31a01f87a03adabd7712e7d5f20f60 \
-                        size    79665 \
                     golang.org/x/crypto \
                         lock    5c72a883971a \
                         rmd160  090821b28d0329a087b91a964a53937f3ce0047a \
@@ -73,7 +68,8 @@ go.vendors          github.com/urfave/cli \
                         rmd160  fb9650e2d16525153645e5547626f242f3800149 \
                         sha256  8cc9e5dc68e247554227973d0b4e023b27bbd9ba5a26e4fb40f44743afcb35f1 \
                         size    42087 \
-                    github.com/cpuguy83/go-md2man \
+                    github.com/cpuguy83/go-md2man/v2 \
+                        repo    github.com/cpuguy83/go-md2man \
                         lock    v2.0.0 \
                         rmd160  85f342c341fa928e9ec874490c277bdabf1c39c6 \
                         sha256  2f3f8bc701df4890a5a4baf0b632ad3290be1e0aaf572b2e58fd57df93efc306 \

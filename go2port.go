@@ -19,6 +19,8 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli"
 	"golang.org/x/crypto/ripemd160"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 	"golang.org/x/net/html"
 	"gopkg.in/yaml.v2"
 )
@@ -375,13 +377,19 @@ func newPackage(pkg string, version string) (Package, error) {
 		}
 		ret.Author = parts[1]
 		ret.Project = parts[2]
+		if len(parts) > 3 {
+			ret.ResolvedId = strings.Join(parts[:3], "/")
+		}
 	default:
-		parts, err := resolvePackage(pkg)
+		parts, dir, err := resolvePackage(pkg)
 		if err != nil {
 			return ret, err
 		}
 		ret.ResolvedId = strings.Join(parts, "/")
 		ret.Host = parts[0]
+		if dir != "" && ret.Version[0] == 'v' {
+			ret.Version = dir + "/" + ret.Version
+		}
 		// TODO: What if there's really more than 3?
 		if len(parts) >= 3 {
 			ret.Author = parts[1]
@@ -395,15 +403,16 @@ func newPackage(pkg string, version string) (Package, error) {
 	return ret, nil
 }
 
-func resolvePackage(pkg string) ([]string, error) {
+func resolvePackage(pkg string) ([]string, string, error) {
+	dir := ""
 	res, err := http.Get("https://" + pkg + "?go-get=1")
 	if err != nil {
-		return nil, err
+		return nil, dir, err
 	}
 	doc, err := html.Parse(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, dir, err
 	}
 	var parts []string
 	var f func(*html.Node) bool
@@ -446,6 +455,9 @@ func resolvePackage(pkg string) ([]string, error) {
 			parts = append([]string{u.Host}, pathParts...)
 			// Remove ".git" suffix
 			parts[len(parts)-1] = strings.TrimSuffix(parts[len(parts)-1], ".git")
+			if len(pkg) > len(importPrefix) {
+				dir = pkg[len(importPrefix)+1:]
+			}
 			if debugOn {
 				log.Printf("Resolved dependency %s to %s", pkg, strings.Join(parts, "/"))
 			}
@@ -459,9 +471,9 @@ func resolvePackage(pkg string) ([]string, error) {
 		return false
 	}
 	if f(doc) {
-		return parts, nil
+		return parts, dir, nil
 	} else {
-		return nil, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
+		return nil, dir, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
 	}
 }
 
@@ -505,9 +517,9 @@ func rawFileUrl(pkg Package, dir string, file string) (string, error) {
 }
 
 func moduleDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
-	modUrl, err := rawFileUrl(pkg, lockfileDir, "go.sum")
+	modUrl, err := rawFileUrl(pkg, lockfileDir, "go.mod")
 	if debugOn {
-		log.Printf("Looking for go.sum at %s", modUrl)
+		log.Printf("Looking for go.mod at %s", modUrl)
 	}
 	if err != nil {
 		return nil, err
@@ -517,7 +529,7 @@ func moduleDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
 		return nil, err
 	}
 	if res.StatusCode != 200 {
-		msg := fmt.Sprintf("go.sum not available; HTTP status=%d", res.StatusCode)
+		msg := fmt.Sprintf("go.mod not available; HTTP status=%d", res.StatusCode)
 		return nil, errors.New(msg)
 	}
 	modBytes, err := io.ReadAll(res.Body)
@@ -525,56 +537,27 @@ func moduleDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
 	if err != nil {
 		return nil, err
 	}
-	lock, err := readGoSum(modUrl, modBytes)
+	lock, err := readGoMod(modBytes)
 	if err != nil {
 		return nil, err
 	}
 	return lock, nil
 }
 
-// emptyGoModHash and readGoSum are adapted from go internal code:
-// https://github.com/golang/vgo/blob/9d567625acf4c5e156b9890bf6feb16eb9fa5c51/vendor/cmd/go/internal/modfetch/fetch.go#L193
-
-// emptyGoModHash is the hash of a 1-file tree containing a 0-length go.mod.
-// A bug caused us to write these into go.sum files for non-modules.
-// We detect and remove them.
-const emptyGoModHash = "h1:G7mAYYxgmS0lVkHyy2hEOLQCFB0DlQFTMLWggykrydY="
-
-func readGoSum(file string, data []byte) ([]Dependency, error) {
+func readGoMod(data []byte) ([]Dependency, error) {
 	var mods = make(map[string]Dependency)
-	lineno := 0
-	for len(data) > 0 {
-		var line []byte
-		lineno++
-		i := bytes.IndexByte(data, '\n')
-		if i < 0 {
-			line, data = data, nil
-		} else {
-			line, data = data[:i], data[i+1:]
-		}
-		f := strings.Fields(string(line))
-		if len(f) == 0 {
-			// blank line; skip it
-			continue
-		}
-		if len(f) != 3 {
-			msg := fmt.Sprintf("go: malformed go.sum:\n%s:%d: wrong number of fields %v", file, lineno, len(f))
-			return nil, errors.New(msg)
-		}
-		if f[2] == emptyGoModHash {
-			// Old bug; drop it.
-			continue
-		}
-		if strings.HasSuffix(f[1], "/go.mod") {
-			// Skip go.mod entry; see
-			// https://golang.org/cmd/go/#hdr-Module_authentication_using_go_sum
-			continue
-		}
-		name := readName(f[0])
-		version := readVersion(f[1])
-		if debugOn {
-			msg := fmt.Sprintf("Found dependency: %s (%s)", name, version)
-			log.Println(msg)
+	file, err := modfile.Parse("go.mod", data, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, req := range file.Require {
+		name := req.Mod.Path
+		version := req.Mod.Version
+		if module.IsPseudoVersion(version) {
+			version, err = module.PseudoVersionRev(version)
+			if err != nil {
+				return nil, err
+			}
 		}
 		mods[name] = Dependency{Name: name, Version: version}
 	}
@@ -600,31 +583,6 @@ func readGoSum(file string, data []byte) ([]Dependency, error) {
 		}
 	}
 	return modValues, nil
-}
-
-var pkgVerReg = regexp.MustCompile("/v\\d+$")
-
-func readName(raw string) string {
-	return pkgVerReg.ReplaceAllString(raw, "")
-}
-
-func readVersion(raw string) string {
-	f := strings.FieldsFunc(raw, func(r rune) bool { return strings.ContainsRune("-+", r) })
-	if len(f) == 4 && f[3] == "incompatible" {
-		// A pseudo-version with +incompatible
-		// https://golang.org/cmd/go/#hdr-Pseudo_versions
-		return f[2]
-	}
-	if len(f) == 3 {
-		// A pseudo-version
-		return f[2]
-	}
-	if len(f) == 2 && f[1] == "incompatible" {
-		// A normal version with +incompatible
-		return f[0]
-	}
-	// Just use the raw version
-	return raw
 }
 
 func glideDependencies(pkg Package, lockfileDir string) ([]Dependency, error) {
@@ -749,7 +707,7 @@ func goVendors(deps []Dependency) string {
 		if pkg.Id != pkg.ResolvedId {
 			ret = ret + fmt.Sprintf("%srepo    %s \\\n", strings.Repeat(" ", 24), pkg.ResolvedId)
 		}
-		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), dep.Version)
+		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), pkg.Version)
 		if debugOn && err != nil {
 			msg := fmt.Sprintf("Could not parse package ID: %s", dep.Name)
 			log.Println(msg)
