@@ -42,11 +42,6 @@ go.vendors          gopkg.in/yaml.v2 \
                         rmd160  4870cfd30c2fe09e9efbd587462bec2826422a88 \
                         sha256  71dc1e67a9fe492a96466486e48ddac84196fd00369c3e5a9fc891fcdfc0783e \
                         size    79018 \
-                    github.com/russross/blackfriday \
-                        lock    v2.1.0 \
-                        rmd160  c42a9332a2c2f3074c6f7e8d37a58d6148d2af08 \
-                        sha256  c4df56f2012a7d16471418245e78b5790569e27bbe8d72a860d7117a801a7fae \
-                        size    92950 \
                     github.com/niemeyer/pretty \
                         lock    a10e7caefd8e \
                         rmd160  46bcfc3db9e3d98acbacd1f96d9483fa360f88b7 \
@@ -57,7 +52,8 @@ go.vendors          gopkg.in/yaml.v2 \
                         rmd160  48558c7e8ff67d510f83c66883907e95f4783163 \
                         sha256  2f2e21ac8a9d523e88cbba4039441defc4a66bfaa78811c900a88fcf28729c4c \
                         size    8702 \
-                    github.com/cpuguy83/go-md2man \
+                    github.com/cpuguy83/go-md2man/v2 \
+                        repo    github.com/cpuguy83/go-md2man \
                         lock    v2.0.2 \
                         rmd160  23c11486c5bc6f87cb13d2cb2aa7c2c68fd28f96 \
                         sha256  c0fe49af2717cef631621cbbf010c7ee69b7e5c8afcde33779e07ecece9c00cc \

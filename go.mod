@@ -1,6 +1,6 @@
 module github.com/amake/go2port
 
-go 1.23.0
+go 1.24.0
 
 toolchain go1.24.1
 
@@ -8,6 +8,7 @@ require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/urfave/cli v1.22.16
 	golang.org/x/crypto v0.36.0
+	golang.org/x/mod v0.33.0
 	golang.org/x/net v0.37.0
 	gopkg.in/yaml.v2 v2.4.0
 )
