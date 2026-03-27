@@ -22,17 +22,21 @@ bump:
 
 .PHONY: test
 test: ## Run tests
-test: test-bin test-get test-update
+test: test-bin test-unit test-get test-update
 
 .PHONY: test-bin
 test-bin: | go2port
 	@[[ $$(./go2port -v) = "go2port version $(version)" ]] && echo bin: ok
 
+.PHONY: test-unit
+test-unit:
+	go test
+
 .PHONY: test-get
 test-get: | go2port
 	@diff <(./go2port get github.com/amake/go2port 6d6dc46) test/gold/get/Portfile.go2port.6d6dc46 && echo glide.lock: ok
 	@diff <(./go2port get github.com/amake/go2port c72df06) test/gold/get/Portfile.go2port.c72df06 && echo Gopkg.lock: ok
-	@diff <(./go2port get github.com/amake/go2port 3e11cdb) test/gold/get/Portfile.go2port.3e11cdb && go test && echo go.mod: ok
+	@diff <(./go2port get github.com/amake/go2port 3e11cdb) test/gold/get/Portfile.go2port.3e11cdb && echo go.mod: ok
 
 .PHONY: test-update
 test-update: | go2port
