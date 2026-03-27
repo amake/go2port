@@ -32,7 +32,7 @@ test-bin: | go2port
 test-get: | go2port
 	@diff <(./go2port get github.com/amake/go2port 6d6dc46) test/gold/get/Portfile.go2port.6d6dc46 && echo glide.lock: ok
 	@diff <(./go2port get github.com/amake/go2port c72df06) test/gold/get/Portfile.go2port.c72df06 && echo Gopkg.lock: ok
-	@diff <(./go2port get github.com/amake/go2port 3e11cdb) test/gold/get/Portfile.go2port.3e11cdb && echo go.mod: ok
+	@diff <(./go2port get github.com/amake/go2port 3e11cdb) test/gold/get/Portfile.go2port.3e11cdb && go test && echo go.mod: ok
 
 .PHONY: test-update
 test-update: | go2port
