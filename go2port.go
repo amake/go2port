@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/ripemd160"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
+	"golang.org/x/mod/semver"
 	"golang.org/x/net/html"
 	"gopkg.in/yaml.v2"
 )
@@ -335,6 +336,7 @@ func newPackage(pkg string, version string) (Package, error) {
 		ResolvedId: pkg,
 		Version:    version,
 	}
+	dir := ""
 	// Special case for protobuf, which is a very common dependency but is
 	// canonically hosted on go.googlesource.com which can't serve stable
 	// tarballs.
@@ -379,17 +381,17 @@ func newPackage(pkg string, version string) (Package, error) {
 		ret.Project = parts[2]
 		if len(parts) > 3 {
 			ret.ResolvedId = strings.Join(parts[:3], "/")
+			if !semver.IsValid(parts[3]) {
+				dir = strings.Join(parts[3:], "/")
+			}
 		}
 	default:
-		parts, dir, err := resolvePackage(pkg)
+		parts, d, err := resolvePackage(pkg)
 		if err != nil {
 			return ret, err
 		}
 		ret.ResolvedId = strings.Join(parts, "/")
 		ret.Host = parts[0]
-		if dir != "" && ret.Version[0] == 'v' {
-			ret.Version = dir + "/" + ret.Version
-		}
 		// TODO: What if there's really more than 3?
 		if len(parts) >= 3 {
 			ret.Author = parts[1]
@@ -399,6 +401,10 @@ func newPackage(pkg string, version string) (Package, error) {
 		} else {
 			return ret, errors.New(fmt.Sprintf("Too few parts: %s", parts))
 		}
+		dir = d
+	}
+	if dir != "" && semver.IsValid(ret.Version) {
+		ret.Version = dir + "/" + ret.Version
 	}
 	return ret, nil
 }
@@ -558,6 +564,8 @@ func readGoMod(data []byte) ([]Dependency, error) {
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			version = semver.Canonical(version)
 		}
 		mods[name] = Dependency{Name: name, Version: version}
 	}

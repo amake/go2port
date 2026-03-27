@@ -22,11 +22,15 @@ bump:
 
 .PHONY: test
 test: ## Run tests
-test: test-bin test-get test-update
+test: test-bin test-unit test-get test-update
 
 .PHONY: test-bin
 test-bin: | go2port
 	@[[ $$(./go2port -v) = "go2port version $(version)" ]] && echo bin: ok
+
+.PHONY: test-unit
+test-unit:
+	go test
 
 .PHONY: test-get
 test-get: | go2port
