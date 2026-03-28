@@ -23,6 +23,7 @@ import (
 	"golang.org/x/mod/module"
 	"golang.org/x/mod/semver"
 	"golang.org/x/net/html"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v2"
 )
 
@@ -704,46 +705,69 @@ func packageAlias(pkg Package) string {
 	return fmt.Sprintf("go.package%s%s\n\n", strings.Repeat(" ", 10), pkg.Id)
 }
 
+func goVendor(dep Dependency) (string, error) {
+	ret := ""
+	pkg, err := newPackage(dep.Name, dep.Version)
+	ret = ret + pkg.Id + " \\\n"
+	if pkg.Id != pkg.ResolvedId {
+		ret = ret + fmt.Sprintf("%srepo    %s \\\n", strings.Repeat(" ", 24), pkg.ResolvedId)
+	}
+	ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), pkg.Version)
+	if debugOn && err != nil {
+		msg := fmt.Sprintf("Could not parse package ID: %s", dep.Name)
+		log.Println(msg)
+		log.Println(err)
+	}
+	if debugOn {
+		log.Printf("Calculating checksums for %s", pkg.Id)
+	}
+	tarUrl, err := tarballUrlForVendors(pkg)
+	if debugOn {
+		log.Printf("Resolved %s to %s", pkg.Id, tarUrl)
+	}
+	if err != nil {
+		msg := fmt.Sprintf("WARNING: Could not get tarball URL for package: %s", pkg.Id)
+		log.Println(msg)
+		log.Println(err)
+	}
+	csums, err := checksums(pkg.Id, tarUrl)
+	if err != nil {
+		msg := fmt.Sprintf("WARNING: Could not calculate checksums for package: %s", pkg.Id)
+		log.Println(msg)
+		log.Println(err)
+	}
+	ret = ret + csums.valueString(24)
+	return ret, nil
+}
+
 func goVendors(deps []Dependency) string {
 	if len(deps) == 0 {
 		return ""
 	}
 	ret := "go.vendors          "
+
+	var g errgroup.Group
+	g.SetLimit(8)
+	results := make([]string, len(deps))
+
 	for i, dep := range deps {
-		pkg, err := newPackage(dep.Name, dep.Version)
-		ret = ret + pkg.Id + " \\\n"
-		if pkg.Id != pkg.ResolvedId {
-			ret = ret + fmt.Sprintf("%srepo    %s \\\n", strings.Repeat(" ", 24), pkg.ResolvedId)
-		}
-		ret = ret + fmt.Sprintf("%slock    %s \\\n", strings.Repeat(" ", 24), pkg.Version)
-		if debugOn && err != nil {
-			msg := fmt.Sprintf("Could not parse package ID: %s", dep.Name)
-			log.Println(msg)
-			log.Println(err)
-		}
-		if debugOn {
-			log.Printf("Calculating checksums for %s", pkg.Id)
-		}
-		tarUrl, err := tarballUrlForVendors(pkg)
-		if debugOn {
-			log.Printf("Resolved %s to %s", pkg.Id, tarUrl)
-		}
-		if err != nil {
-			msg := fmt.Sprintf("WARNING: Could not get tarball URL for package: %s", pkg.Id)
-			log.Println(msg)
-			log.Println(err)
-		}
-		csums, err := checksums(pkg.Id, tarUrl)
-		if err != nil {
-			msg := fmt.Sprintf("WARNING: Could not calculate checksums for package: %s", pkg.Id)
-			log.Println(msg)
-			log.Println(err)
-		}
-		ret = ret + csums.valueString(24)
+		i, dep := i, dep
+		g.Go(func() error {
+			r, err := goVendor(dep)
+			results[i] = r
+			return err
+		})
+	}
+
+	_ = g.Wait()
+
+	for i, r := range results {
+		ret = ret + r
 		if i < len(deps)-1 {
 			ret = ret + " \\\n" + strings.Repeat(" ", 20)
 		}
 	}
+
 	return ret
 }
 
