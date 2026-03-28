@@ -69,7 +69,6 @@ go.vendors          github.com/urfave/cli \
                         sha256  8cc9e5dc68e247554227973d0b4e023b27bbd9ba5a26e4fb40f44743afcb35f1 \
                         size    42087 \
                     github.com/cpuguy83/go-md2man/v2 \
-                        repo    github.com/cpuguy83/go-md2man \
                         lock    v2.0.0 \
                         rmd160  85f342c341fa928e9ec874490c277bdabf1c39c6 \
                         sha256  2f3f8bc701df4890a5a4baf0b632ad3290be1e0aaf572b2e58fd57df93efc306 \
