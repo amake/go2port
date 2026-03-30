@@ -357,6 +357,9 @@ func newPackage(pkg string, version string) (Package, error) {
 		ret.Host = "github.com"
 		ret.Author = "golang"
 		ret.Project = parts[2]
+		if len(parts) > 3 {
+			dir = strings.Join(parts[3:], "/")
+		}
 	case "gopkg.in":
 		// gopkg.in redirects to GitHub
 		ret.Host = "github.com"
@@ -381,10 +384,7 @@ func newPackage(pkg string, version string) (Package, error) {
 		ret.Author = parts[1]
 		ret.Project = parts[2]
 		if len(parts) > 3 {
-			ret.ResolvedId = strings.Join(parts[:3], "/")
-			if !semver.IsValid(parts[3]) {
-				dir = strings.Join(parts[3:], "/")
-			}
+			dir = strings.Join(parts[3:], "/")
 		}
 	default:
 		parts, d, err := resolvePackage(pkg)
@@ -404,8 +404,14 @@ func newPackage(pkg string, version string) (Package, error) {
 		}
 		dir = d
 	}
-	if dir != "" && semver.IsValid(ret.Version) {
-		ret.Version = dir + "/" + ret.Version
+	if dir != "" {
+		parts := strings.Split(dir, "/")
+		if semver.IsValid(parts[len(parts)-1]) {
+			dir = strings.Join(parts[:len(parts)-1], "/")
+		}
+		if dir != "" && semver.IsValid(ret.Version) {
+			ret.Version = dir + "/" + ret.Version
+		}
 	}
 	return ret, nil
 }
