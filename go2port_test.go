@@ -1,8 +1,52 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 )
+
+func TestGenerate(t *testing.T) {
+	pkg, err := newPackage("github.com/golang/mod", "v0.35.0")
+	if err != nil {
+		t.Fatalf("newPackage failed: %v", err)
+	}
+	out, err := generateOne(pkg, portfileTemplate, "")
+	if err != nil {
+		t.Fatalf("generateOne failed: %v", err)
+	}
+	expected := `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- vim:fenc=utf-8:ft=tcl:et:sw=4:ts=4:sts=4
+
+PortSystem          1.0
+PortGroup           golang 1.0
+
+go.setup            github.com/golang/mod 0.35.0 v
+categories
+maintainers
+license
+
+description
+
+long_description
+
+checksums           ${distname}${extract.suffix} \
+                        rmd160  4f0799514346692c4b4e5d43965cd27b35e31888 \
+                        sha256  2267c3c122d5079e51869803d23beae9a80f924637020cbdd5cadafa9b46ec5a \
+                        size    126356
+
+go.vendors          golang.org/x/tools \
+                        lock    v0.43.0 \
+                        rmd160  b377118e8dad709371911d0d4dafc81449b4cfc1 \
+                        sha256  8a769c286f139902573535c395226b82e8469cbc4f1a07dcdb1bc728d393e74b \
+                        size    8386374
+
+destroot {
+    xinstall -m 0755 ${worksrcpath}/${name} ${destroot}${prefix}/bin/
+}
+`
+	if !bytes.Equal(out, []byte(expected)) {
+		t.Fatalf("unexpected output:\n--- got ---\n%s\n--- want ---\n%s", out, expected)
+	}
+}
 
 func TestGoMod(t *testing.T) {
 	goMod := []byte(`

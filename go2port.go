@@ -93,7 +93,7 @@ var portfileTemplate = `# -*- coding: utf-8; mode: tcl; tab-width: 4; indent-tab
 PortSystem          1.0
 PortGroup           golang 1.0
 
-go.setup            {{.PackageId}} {{.Version}}
+go.setup            {{.PackageId}} {{.Version}}{{if .Prefix}} {{.Prefix}}{{end}}
 categories
 maintainers
 license
@@ -312,10 +312,18 @@ func generateOne(pkg Package, tmplate string, lockfileDir string) ([]byte, error
 		log.Println(err)
 	}
 
+	prefix := ""
+	version := pkg.Version
+	if semver.IsValid(version) {
+		prefix = version[:1]
+		version = version[1:]
+	}
+
 	tvars := map[string]string{
 		"PackageId":    pkg.ResolvedId,
 		"PackageAlias": packageAlias(pkg),
-		"Version":      pkg.Version,
+		"Prefix":       prefix,
+		"Version":      version,
 		"Checksums":    checksumsStr(pkg.Id, tarUrl, len(deps)),
 		"GoVendors":    goVendors(deps),
 	}
