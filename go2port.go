@@ -383,6 +383,18 @@ func newPackage(pkg string, version string) (Package, error) {
 		default:
 			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
 		}
+	case "software.sslmate.com":
+		if len(parts) < 3 {
+			return ret, errors.New(fmt.Sprintf("Invalid package ID: %s", pkg))
+		}
+		// Use GitHub mirror
+		ret.Host = "github.com"
+		ret.Author = "SSLMate"
+		ret.Project = parts[2]
+		ret.ResolvedId = ret.Host + "/" + ret.Author + "/" + ret.Project
+		if len(parts) > 3 {
+			dir = strings.Join(parts[3:], "/")
+		}
 	case "bitbucket.org":
 		fallthrough
 	case "github.com":
