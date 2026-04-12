@@ -64,6 +64,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.16
 	golang.org/x/tools/go/packages/packagestest v0.1.1-deprecated
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171
+	software.sslmate.com/src/go-pkcs12 v0.7.0
 )
 `)
 	deps, err := readGoMod(goMod)
@@ -73,7 +74,13 @@ require (
 
 	out := goVendors(deps)
 
-	expected := `go.vendors          sigs.k8s.io/structured-merge-diff/v6 \
+	expected := `go.vendors          software.sslmate.com/src/go-pkcs12 \
+                        repo    github.com/SSLMate/go-pkcs12 \
+                        lock    v0.7.0 \
+                        rmd160  3d566facaee53542eb98be8f14a15ec8f05c17e1 \
+                        sha256  87fac4bb17557893140fd64d01640fe5e5baa76578444ffc5150ca60a2edee9e \
+                        size    48764 \
+                    sigs.k8s.io/structured-merge-diff/v6 \
                         repo    github.com/kubernetes-sigs/structured-merge-diff \
                         lock    v6.3.0 \
                         rmd160  edb2cdd7f5b865e96be7afe07ca55849b95b907b \
